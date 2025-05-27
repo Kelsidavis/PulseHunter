@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseHunter: Candidate Exoplanet Transits</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.js"></script>
+  <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.css" />
+</head>
+<body>
+  <h1>Candidate Exoplanet Transits</h1>
+  <div id="aladin-lite-div" style="width: 100%; height: 500px;"></div>
+  <table id="transit-table">
+    <thead>
+      <tr>
+        <th>Observer</th><th>RA</th><th>Dec</th><th>Timestamp</th><th>Confidence</th><th>Exoplanet</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const aladin = A.aladin('#aladin-lite-div', {
+      survey: "P/DSS2/color",
+      fov: 2,
+      target: "0 0"
+    });
+
+    fetch("reports/").then(async res => {
+      const text = await res.text();
+      const files = [...text.matchAll(/href="(pulse_report.*?)"/g)].map(m => m[1]);
+      for (const file of files) {
+        const res = await fetch("reports/" + file);
+        const json = await res.json();
+        for (const det of json.detections || []) {
+          if (det.dimming && det.exo_match) {
+            const ra = det.ra_deg, dec = det.dec_deg;
+            const marker = A.marker([ra, dec], {popupTitle: `${det.exo_match.planet} (${det.exo_match.host})`});
+            aladin.addOverlay(marker);
+            const row = document.createElement("tr");
+            row.innerHTML = `<td>${det.observer || 'Unknown'}</td><td>${ra}</td><td>${dec}</td>
+              <td>${det.timestamp_utc || ''}</td><td>${(det.confidence * 100).toFixed(0)}%</td>
+              <td>${det.exo_match.planet} (${det.exo_match.host})</td>`;
+            document.querySelector("#transit-table tbody").appendChild(row);
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

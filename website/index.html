@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseHunter Sky Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.js"></script>
+</head>
+<body>
+  <p style="text-align:center;"><a href="exoplanet_transits.html">View Candidate Exoplanet Transits →</a></p>
+  <h1>PulseHunter Sky Dashboard</h1>
+  <div id="aladin-lite-div" style="width: 100%; height: 500px;"></div>
+  <div id="legend">Confidence Legend: <span class="legend green"></span> High <span class="legend yellow"></span> Medium <span class="legend red"></span> Low</div>
+  <table id="detectionTable">
+    <thead>
+      <tr>
+        <th>Observer</th>
+        <th>RA</th>
+        <th>Dec</th>
+        <th>Date (UTC)</th>
+        <th>Confidence</th>
+        <th>GAIA Match</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script src="viewer.js"></script>
+
+  <footer style="text-align:center; margin-top:2em; font-size:0.9em;">
+    <p><strong>PulseHunter</strong> is an open-source Optical SETI detection tool for amateur astronomers.<br>
+    Developed by <a href="https://geekastro.dev" target="_blank" style="color:#5cc1ff;">Kelsi Davis</a>.</p>
+  </footer>
+</body>
+</html>
+
