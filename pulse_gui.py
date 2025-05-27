@@ -2,7 +2,7 @@ import hashlib
 import os
 import sys
 
-from PySide6.QtCore import QSignal, Qt, QThread
+from PySide6.QtCore import Signal, Qt, QThread
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,10 +37,10 @@ from pulsehunter_core import (
 class DetectionWorker(QThread):
     """Worker thread for detection processing to prevent GUI freezing"""
 
-    progress_updated = QSignal(int)
-    log_updated = QSignal(str)
-    detection_complete = QSignal(list)
-    error_occurred = QSignal(str)
+    progress_updated = Signal(int)
+    log_updated = Signal(str)
+    detection_complete = Signal(list)
+    error_occurred = Signal(str)
 
     def __init__(self, fits_folder, z_thresh, calibration_data):
         super().__init__()
