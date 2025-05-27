@@ -1,0 +1,77 @@
+/* Custom styles for PulseHunter documentation */
+
+/* Improve code block styling */
+.highlight {
+    background: #f8f8f8;
+    border: 1px solid #e1e4e5;
+    border-radius: 4px;
+    margin: 1em 0;
+}
+
+/* Style for API documentation */
+.py.class, .py.function, .py.method {
+    border-left: 3px solid #2980b9;
+    padding-left: 10px;
+    margin: 10px 0;
+}
+
+/* Improve table styling */
+.rst-content table.docutils {
+    border: 1px solid #e1e4e5;
+    border-collapse: collapse;
+}
+
+.rst-content table.docutils th,
+.rst-content table.docutils td {
+    border: 1px solid #e1e4e5;
+    padding: 8px 12px;
+}
+
+.rst-content table.docutils th {
+    background-color: #f1f2f3;
+    font-weight: bold;
+}
+
+/* Style for admonitions */
+.admonition {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid;
+    border-radius: 0 4px 4px 0;
+}
+
+.admonition.note {
+    border-left-color: #2980b9;
+    background-color: #e7f2fa;
+}
+
+.admonition.warning {
+    border-left-color: #f39c12;
+    background-color: #fdf4e3;
+}
+
+.admonition.error {
+    border-left-color: #e74c3c;
+    background-color: #faeaea;
+}
+
+/* Improve navigation styling */
+.wy-nav-content-wrap {
+    margin-left: 300px;
+}
+
+/* Better spacing for code examples */
+.rst-content pre {
+    margin: 1em 0;
+    padding: 12px;
+}
+
+/* Style for parameter lists */
+.rst-content dl.field-list {
+    margin-bottom: 1em;
+}
+
+.rst-content dl.field-list dt {
+    font-weight: bold;
+    color: #2980b9;
+}
