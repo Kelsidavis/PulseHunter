@@ -261,7 +261,8 @@ class TestFullWorkflow:
             frames, filenames, wcs_objects = load_fits_stack(self.fits_dir)
 
         # Should load the good files and skip the bad one
-        assert len(frames) == 20  # Only the good files
+        if len(frames) != 20:
+            raise AssertionError("Expected 20 valid FITS frames")
 
     def test_memory_efficiency_large_dataset(self):
         """Test memory efficiency with larger dataset"""
@@ -421,7 +422,8 @@ class TestRealDataScenarios:
 
             # Algorithm should ideally reject or flag these artifacts
             # For now, just verify it doesn't crash
-            assert isinstance(detections, list)
+            if not isinstance(detections, list):
+                raise AssertionError("Detections should be a list")
 
 
 class TestErrorRecovery:
@@ -532,7 +534,10 @@ class TestConfigurationVariations:
                 if detections:
                     # Check that cutout images exist and have reasonable size
                     for det in detections:
-                        assert os.path.exists(det["cutout_image"])
+                        if not os.path.exists(det["cutout_image"]):
+                            raise AssertionError(
+                                f"Missing cutout image: {det['cutout_image']}"
+                            )
 
 
 if __name__ == "__main__":
