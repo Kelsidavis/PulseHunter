@@ -1,4 +1,16 @@
-# .flake8
 [flake8]
-ignore = E231, E501, F841, E203, E202
-max-line-length = 160
+max-line-length = 88
+extend-ignore = E203,W503
+select = E,W,F,C
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    venv,
+    env,
+    backup_before_flake8_fix
+per-file-ignores =
+    test_*.py:E501
+    setup.py:E501

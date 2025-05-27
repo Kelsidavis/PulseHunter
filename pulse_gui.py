@@ -286,7 +286,9 @@ class PulseHunterGUI(QWidget):
 
         # Footer
         footer = QLabel(
-            '<b>PulseHunter</b> is an open-source project. Visit <a href="https://geekastro.dev" style="color: #0078d4;">geekastro.dev</a> for more information.'
+            "<b>PulseHunter</b> is an open-source project. "
+            'Visit <a href="https://geekastro.dev" style="color: #0078d4;">'
+            "geekastro.dev</a> for more information."
         )
         footer.setTextFormat(Qt.RichText)
         footer.setOpenExternalLinks(True)
@@ -338,14 +340,13 @@ class PulseHunterGUI(QWidget):
             z_thresh = float(self.threshold_input.text())
             if z_thresh <= 0:
                 raise ValueError("Threshold must be positive")
-        except ValueError as e:
+        except ValueError:
             QMessageBox.warning(
                 self,
                 "Invalid Threshold",
                 "Please enter a valid positive number for threshold.",
             )
             return
-
         # Disable controls during processing
         self.run_button.setEnabled(False)
         self.export_button.setEnabled(False)
@@ -410,7 +411,7 @@ class PulseHunterGUI(QWidget):
             label = f"#{i + 1} | Frame {det['frame']} | Confidence: {confidence_pct}%"
 
             if det.get("ra_deg") and det.get("dec_deg"):
-                label += f" | RA: {det['ra_deg']:.4f}° Dec: {det['dec_deg']:.4f}°"
+                label += f" | RA: {det['ra_deg']:.4f}° " f"Dec: {det['dec_deg']:.4f}°"
 
             if det.get("dimming"):
                 label += " | 🌑 DIMMING"

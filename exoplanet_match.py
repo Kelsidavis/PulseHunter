@@ -36,12 +36,12 @@ def match_transits_with_exoplanets(detections, radius_arcsec=5.0):
                     "host": row["hostname"],
                     "planet": row["pl_name"],
                     "sep_arcsec": round(sep, 2),
-                    "period_days": round(row["pl_orbper"], 2)
-                    if row["pl_orbper"]
-                    else None,
-                    "depth_ppm": round(row["pl_trandep"] * 1e6, 1)
-                    if row["pl_trandep"]
-                    else None,
+                    "period_days": (
+                        round(row["pl_orbper"], 2) if row["pl_orbper"] else None
+                    ),
+                    "depth_ppm": (
+                        round(row["pl_trandep"] * 1e6, 1) if row["pl_trandep"] else None
+                    ),
                 }
                 found_match = True
                 break

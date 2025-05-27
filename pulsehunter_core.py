@@ -109,7 +109,6 @@ def detect_transients(
 
     for i, frame in enumerate(frames):
         z = (frame - mean_image) / (std_image + 1e-5)
-        max_z = np.max(np.abs(z))
         y, x = np.unravel_index(np.argmax(np.abs(z)), z.shape)
         z_value = z[y, x]
 
