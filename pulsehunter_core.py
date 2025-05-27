@@ -1,24 +1,27 @@
-import os
 import json
+import os
+import subprocess
+from datetime import datetime
+
+import astropy.units as u
+import cv2
 import numpy as np
+import requests
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
-from datetime import datetime
-import cv2
-import subprocess
-import requests
-
 from astroquery.gaia import Gaia
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 from PySide6.QtWidgets import QMessageBox
+
 
 def plate_solve_astap(filepath, astap_exe="astap"):
     try:
-        result = subprocess.run([astap_exe, "-f", filepath, "-solve"],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                timeout=30)
+        result = subprocess.run(
+            [astap_exe, "-f", filepath, "-solve"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
         if result.returncode != 0:
             print(f"ASTAP failed: {result.stderr.decode().strip()}")
         else:
@@ -26,9 +29,17 @@ def plate_solve_astap(filepath, astap_exe="astap"):
     except Exception as e:
         print(f"ASTAP error: {e}")
 
-def load_fits_stack(folder, plate_solve_missing=False, astap_exe="astap",
-                    master_bias=None, master_dark=None, master_flat=None,
-                    camera_mode="mono", filter_name=None):
+
+def load_fits_stack(
+    folder,
+    plate_solve_missing=False,
+    astap_exe="astap",
+    master_bias=None,
+    master_dark=None,
+    master_flat=None,
+    camera_mode="mono",
+    filter_name=None,
+):
     frames = []
     filenames = []
     wcs_objects = []
@@ -39,7 +50,7 @@ def load_fits_stack(folder, plate_solve_missing=False, astap_exe="astap",
 
             try:
                 hdr = fits.getheader(path)
-                has_wcs = 'CRVAL1' in hdr and 'CRVAL2' in hdr
+                has_wcs = "CRVAL1" in hdr and "CRVAL2" in hdr
             except Exception:
                 has_wcs = False
 
@@ -75,7 +86,17 @@ def load_fits_stack(folder, plate_solve_missing=False, astap_exe="astap",
 
     return np.array(frames), filenames, wcs_objects
 
-def detect_transients(frames, filenames, wcs_objects, output_dir="detections", z_thresh=6.0, cutout_size=50, edge_margin=20, detect_dimming=False):
+
+def detect_transients(
+    frames,
+    filenames,
+    wcs_objects,
+    output_dir="detections",
+    z_thresh=6.0,
+    cutout_size=50,
+    edge_margin=20,
+    detect_dimming=False,
+):
     if len(frames) == 0:
         print("No frames loaded.")
         return []
@@ -93,15 +114,28 @@ def detect_transients(frames, filenames, wcs_objects, output_dir="detections", z
         z_value = z[y, x]
 
         if abs(z_value) > z_thresh:
-            if x < edge_margin or y < edge_margin or x > frame.shape[1] - edge_margin or y > frame.shape[0] - edge_margin:
+            if (
+                x < edge_margin
+                or y < edge_margin
+                or x > frame.shape[1] - edge_margin
+                or y > frame.shape[0] - edge_margin
+            ):
                 continue
 
-            cutout = frame[max(0, y - cutout_size//2): y + cutout_size//2,
-                           max(0, x - cutout_size//2): x + cutout_size//2]
-            cutout_norm = 255 * (cutout - np.min(cutout)) / (np.max(cutout) - np.min(cutout) + 1e-5)
+            cutout = frame[
+                max(0, y - cutout_size // 2) : y + cutout_size // 2,
+                max(0, x - cutout_size // 2) : x + cutout_size // 2,
+            ]
+            cutout_norm = (
+                255
+                * (cutout - np.min(cutout))
+                / (np.max(cutout) - np.min(cutout) + 1e-5)
+            )
             cutout_img = cutout_norm.astype(np.uint8)
 
-            contours, _ = cv2.findContours(cutout_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(
+                cutout_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
             for cnt in contours:
                 x_, y_, w, h = cv2.boundingRect(cnt)
                 aspect_ratio = max(w, h) / (min(w, h) + 1e-5)
@@ -131,39 +165,54 @@ def detect_transients(frames, filenames, wcs_objects, output_dir="detections", z
                 brightness = float(np.sum(aperture))
                 light_curve.append(brightness)
 
-            detections.append({
-                "frame": i,
-                "filename": filenames[i],
-                "x": int(x),
-                "y": int(y),
-                "ra_deg": ra_deg,
-                "dec_deg": dec_deg,
-                "z_score": float(z_value),
-                "dimming": z_value < 0,
-                "confidence": round(float(min(1.0, abs(z_value) / 12.0)), 2),
-                "cutout_image": out_path,
-                "timestamp_utc": datetime.utcnow().isoformat() + "Z",
-                "light_curve": light_curve
-            })
+            detections.append(
+                {
+                    "frame": i,
+                    "filename": filenames[i],
+                    "x": int(x),
+                    "y": int(y),
+                    "ra_deg": ra_deg,
+                    "dec_deg": dec_deg,
+                    "z_score": float(z_value),
+                    "dimming": z_value < 0,
+                    "confidence": round(float(min(1.0, abs(z_value) / 12.0)), 2),
+                    "cutout_image": out_path,
+                    "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+                    "light_curve": light_curve,
+                }
+            )
 
     return detections
+
 
 def crossmatch_with_gaia(detections, radius_arcsec=5.0):
     matched = []
     for det in detections:
         if det["ra_deg"] is None or det["dec_deg"] is None:
-            det.update({"match_name": None, "object_type": None, "angular_distance_arcsec": None})
+            det.update(
+                {
+                    "match_name": None,
+                    "object_type": None,
+                    "angular_distance_arcsec": None,
+                }
+            )
             matched.append(det)
             continue
 
-        coord = SkyCoord(ra=det["ra_deg"] * u.deg, dec=det["dec_deg"] * u.deg, frame="icrs")
+        coord = SkyCoord(
+            ra=det["ra_deg"] * u.deg, dec=det["dec_deg"] * u.deg, frame="icrs"
+        )
         try:
             query = f"""
                 SELECT TOP 1 source_id, ra, dec, phot_g_mean_mag, parallax
                 FROM gaiadr3.gaia_source
                 WHERE 1=CONTAINS(
                     POINT('ICRS', ra, dec),
-                    CIRCLE('ICRS', {coord.ra.deg}, {coord.dec.deg}, {radius_arcsec / 3600.0})
+                    CIRCLE(
+    'ICRS', {
+                coord.ra.deg}, {
+                coord.dec.deg}, {
+                radius_arcsec / 3600.0})
                 )
             """
             job = Gaia.launch_job(query)
@@ -171,24 +220,39 @@ def crossmatch_with_gaia(detections, radius_arcsec=5.0):
 
             if len(result) > 0:
                 r = result[0]
-                gaia_coord = SkyCoord(r['ra'] * u.deg, r['dec'] * u.deg)
+                gaia_coord = SkyCoord(r["ra"] * u.deg, r["dec"] * u.deg)
                 sep = coord.separation(gaia_coord).arcsecond
                 parallax = float(r["parallax"])
                 distance_pc = round(1000.0 / parallax, 2) if parallax > 0 else -1
-                det.update({
-                    "match_name": f"GAIA DR3 {r['source_id']}",
-                    "object_type": "Star",
-                    "angular_distance_arcsec": round(sep, 2),
-                    "g_mag": float(r["phot_g_mean_mag"]),
-                    "distance_pc": distance_pc
-                })
+                det.update(
+                    {
+                        "match_name": f"GAIA DR3 {r['source_id']}",
+                        "object_type": "Star",
+                        "angular_distance_arcsec": round(sep, 2),
+                        "g_mag": float(r["phot_g_mean_mag"]),
+                        "distance_pc": distance_pc,
+                    }
+                )
             else:
-                det.update({"match_name": None, "object_type": None, "angular_distance_arcsec": None})
+                det.update(
+                    {
+                        "match_name": None,
+                        "object_type": None,
+                        "angular_distance_arcsec": None,
+                    }
+                )
         except Exception:
-            det.update({"match_name": None, "object_type": None, "angular_distance_arcsec": None})
+            det.update(
+                {
+                    "match_name": None,
+                    "object_type": None,
+                    "angular_distance_arcsec": None,
+                }
+            )
 
         matched.append(det)
     return matched
+
 
 def save_report(detections, output_path="pulse_report.json"):
     with open(output_path, "w") as f:
@@ -197,14 +261,17 @@ def save_report(detections, output_path="pulse_report.json"):
     try:
         with open(output_path, "r") as f:
             data = f.read()
-        response = requests.post("https://geekastro.dev/pulsehunter/submit_report.php", data=data)
+        response = requests.post(
+            "https://geekastro.dev/pulsehunter/submit_report.php", data=data
+        )
         if response.ok:
             print("✅ Report uploaded successfully.")
-            QMessageBox.information(None, "Upload Success", "Report uploaded to geekastro.dev.")
+            QMessageBox.information(
+                None, "Upload Success", "Report uploaded to geekastro.dev."
+            )
         else:
             print("⚠️ Upload failed:", response.text)
             QMessageBox.warning(None, "Upload Failed", response.text)
     except Exception as e:
         print("❌ Upload error:", e)
         QMessageBox.critical(None, "Upload Error", str(e))
-

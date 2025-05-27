@@ -1,52 +1,978 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulseHunter: Candidate Exoplanet Transits</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.js"></script>
-  <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exoplanet Transit Candidates - PulseHunter</title>
+    <meta name="description" content="Discover potential exoplanet transits detected by the PulseHunter network. Real-time analysis of dimming events that could indicate new worlds.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.js"></script>
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v3/latest/aladin.min.css">
+    <style>
+        :root {
+            --primary: #0066cc;
+            --primary-dark: #004d99;
+            --secondary: #ff6b35;
+            --background: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-light: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent: #00d4ff;
+            --success: #00c851;
+            --warning: #ff8800;
+            --error: #ff4444;
+            --exoplanet: #8a2be2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent);
+        }
+
+        /* Header */
+        .header {
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(138, 43, 226, 0.1) 0%, transparent 70%);
+        }
+
+        .header h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--exoplanet), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--exoplanet);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Controls */
+        .controls {
+            max-width: 1200px;
+            margin: 0 auto 2rem;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        select, input {
+            background: var(--surface-light);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        /* Sky Map */
+        .sky-map-container {
+            max-width: 1200px;
+            margin: 0 auto 4rem;
+            padding: 0 2rem;
+        }
+
+        .map-wrapper {
+            background: var(--surface);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.1);
+        }
+
+        #aladin-lite-div {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .map-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--exoplanet);
+        }
+
+        /* Transit Cards */
+        .transits-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--text-primary);
+        }
+
+        .transits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .transit-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .transit-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--exoplanet), var(--accent));
+        }
+
+        .transit-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(138, 43, 226, 0.2);
+            border-color: var(--exoplanet);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .planet-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--exoplanet);
+        }
+
+        .host-star {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .confidence-badge {
+            background: var(--success);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .card-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .card-footer {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .observer-info {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .view-details {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .view-details:hover {
+            color: var(--text-primary);
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4rem 0;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(138, 43, 226, 0.3);
+            border-left: 4px solid var(--exoplanet);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .no-data h3 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-container {
+                padding: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .header {
+                padding: 6rem 1rem 3rem;
+            }
+
+            .stats-row {
+                gap: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                justify-content: center;
+            }
+
+            .transits-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
 </head>
 <body>
-  <h1>Candidate Exoplanet Transits</h1>
-  <div id="aladin-lite-div" style="width: 100%; height: 500px;"></div>
-  <table id="transit-table">
-    <thead>
-      <tr>
-        <th>Observer</th><th>RA</th><th>Dec</th><th>Timestamp</th><th>Confidence</th><th>Exoplanet</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">PulseHunter</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#sky-map">All Detections</a></li>
+                <li><a href="#transits">Transit Candidates</a></li>
+                <li><a href="https://github.com/Kelsidavis/PulseHunter" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
 
-  <script>
-    const aladin = A.aladin('#aladin-lite-div', {
-      survey: "P/DSS2/color",
-      fov: 2,
-      target: "0 0"
-    });
+    <header class="header">
+        <h1>🪐 Exoplanet Transit Candidates</h1>
+        <p class="subtitle">
+            Potential exoplanet transits detected by the PulseHunter network. These dimming events could indicate
+            new worlds orbiting distant stars, awaiting confirmation by professional astronomers.
+        </p>
 
-    fetch("reports/").then(async res => {
-      const text = await res.text();
-      const files = [...text.matchAll(/href="(pulse_report.*?)"/g)].map(m => m[1]);
-      for (const file of files) {
-        const res = await fetch("reports/" + file);
-        const json = await res.json();
-        for (const det of json.detections || []) {
-          if (det.dimming && det.exo_match) {
-            const ra = det.ra_deg, dec = det.dec_deg;
-            const marker = A.marker([ra, dec], {popupTitle: `${det.exo_match.planet} (${det.exo_match.host})`});
-            aladin.addOverlay(marker);
-            const row = document.createElement("tr");
-            row.innerHTML = `<td>${det.observer || 'Unknown'}</td><td>${ra}</td><td>${dec}</td>
-              <td>${det.timestamp_utc || ''}</td><td>${(det.confidence * 100).toFixed(0)}%</td>
-              <td>${det.exo_match.planet} (${det.exo_match.host})</td>`;
-            document.querySelector("#transit-table tbody").appendChild(row);
-          }
+        <div class="stats-row">
+            <div class="stat">
+                <span class="stat-number" id="total-candidates">0</span>
+                <span class="stat-label">Transit Candidates</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="known-matches">0</span>
+                <span class="stat-label">Known Exoplanets</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="unique-systems">0</span>
+                <span class="stat-label">Star Systems</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="controls">
+        <div class="filter-group">
+            <label for="confidence-filter">Min Confidence:</label>
+            <select id="confidence-filter">
+                <option value="0">All Candidates</option>
+                <option value="50">50%+</option>
+                <option value="70" selected>70%+</option>
+                <option value="80">80%+</option>
+                <option value="90">90%+</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="period-filter">Orbital Period:</label>
+            <select id="period-filter">
+                <option value="">All Periods</option>
+                <option value="hot-jupiter">Hot Jupiters (&lt;10 days)</option>
+                <option value="warm-jupiter">Warm Jupiters (10-100 days)</option>
+                <option value="cold-jupiter">Cold Jupiters (&gt;100 days)</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <input type="text" id="search-input" placeholder="Search by observer or star name...">
+            <button class="btn" onclick="applyFilters()">Filter</button>
+        </div>
+    </div>
+
+    <div class="sky-map-container">
+        <div class="map-wrapper">
+            <div id="aladin-lite-div"></div>
+            <div class="map-legend">
+                <div class="legend-item">
+                    <div class="legend-marker"></div>
+                    <span>Exoplanet Transit Candidate</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="transits-section" id="transits">
+        <h2 class="section-title">Transit Candidate Details</h2>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading exoplanet transit data...</p>
+        </div>
+
+        <div id="no-data" class="no-data" style="display: none;">
+            <h3>🔍 No Transit Candidates Found</h3>
+            <p>No exoplanet transit candidates match your current filters. Try adjusting your search criteria or check back later for new discoveries.</p>
+        </div>
+
+        <div class="transits-grid" id="transits-grid">
+            <!-- Transit cards will be populated here -->
+        </div>
+    </section>
+
+    <script>
+        class ExoplanetViewer {
+            constructor() {
+                this.allTransits = [];
+                this.filteredTransits = [];
+                this.aladin = null;
+                this.init();
+            }
+
+            async init() {
+                this.showLoading(true);
+                await this.initAladin();
+                await this.loadTransitData();
+                this.updateStats();
+                this.renderTransits();
+                this.showLoading(false);
+                this.setupEventListeners();
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                const noData = document.getElementById('no-data');
+                const grid = document.getElementById('transits-grid');
+
+                if (show) {
+                    loading.style.display = 'flex';
+                    noData.style.display = 'none';
+                    grid.style.display = 'none';
+                } else {
+                    loading.style.display = 'none';
+                    if (this.filteredTransits.length === 0) {
+                        noData.style.display = 'block';
+                        grid.style.display = 'none';
+                    } else {
+                        noData.style.display = 'none';
+                        grid.style.display = 'grid';
+                    }
+                }
+            }
+
+            async initAladin() {
+                try {
+                    this.aladin = A.aladin('#aladin-lite-div', {
+                        survey: 'P/DSS2/color',
+                        fov: 60,
+                        target: '6 00 +23 00', // Gemini constellation
+                        showReticle: false,
+                        showZoomControl: true,
+                        showFullscreenControl: true,
+                        showLayersControl: false,
+                        showGotoControl: true,
+                        showShareControl: false
+                    });
+                } catch (error) {
+                    console.error('Failed to initialize Aladin:', error);
+                }
+            }
+
+            async loadTransitData() {
+                try {
+                    const response = await fetch('reports/');
+                    if (!response.ok) throw new Error('Failed to fetch reports');
+
+                    const text = await response.text();
+                    const files = [...text.matchAll(/href="(report_.*?\.json)"/g)].map(m => m[1]);
+
+                    this.allTransits = [];
+
+                    for (const file of files) {
+                        try {
+                            const reportResponse = await fetch(`reports/${file}`);
+                            if (!reportResponse.ok) continue;
+
+                            const json = await reportResponse.json();
+                            const detections = json.detections || [];
+
+                            // Filter for dimming events with exoplanet matches
+                            const transits = detections.filter(det =>
+                                det.dimming && det.exo_match && det.ra_deg && det.dec_deg
+                            );
+
+                            this.allTransits.push(...transits);
+                        } catch (error) {
+                            console.warn(`Failed to load ${file}:`, error);
+                        }
+                    }
+
+                    this.filteredTransits = [...this.allTransits];
+                    this.applyFilters();
+                } catch (error) {
+                    console.error('Failed to load transit data:', error);
+                    this.showError();
+                }
+            }
+
+            applyFilters() {
+                const confidenceFilter = document.getElementById('confidence-filter').value;
+                const periodFilter = document.getElementById('period-filter').value;
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+                this.filteredTransits = this.allTransits.filter(transit => {
+                    // Confidence filter
+                    const confidence = (transit.confidence || 0) * 100;
+                    if (confidence < parseFloat(confidenceFilter)) return false;
+
+                    // Period filter
+                    if (periodFilter && transit.exo_match?.period_days) {
+                        const period = transit.exo_match.period_days;
+                        switch (periodFilter) {
+                            case 'hot-jupiter':
+                                if (period >= 10) return false;
+                                break;
+                            case 'warm-jupiter':
+                                if (period < 10 || period > 100) return false;
+                                break;
+                            case 'cold-jupiter':
+                                if (period <= 100) return false;
+                                break;
+                        }
+                    }
+
+                    // Search filter
+                    if (searchTerm) {
+                        const observer = (transit.observer || '').toLowerCase();
+                        const planet = (transit.exo_match?.planet || '').toLowerCase();
+                        const host = (transit.exo_match?.host || '').toLowerCase();
+
+                        if (!observer.includes(searchTerm) &&
+                            !planet.includes(searchTerm) &&
+                            !host.includes(searchTerm)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+
+                this.renderTransits();
+                this.renderSkyMap();
+                this.updateStats();
+            }
+
+            renderSkyMap() {
+                if (!this.aladin) return;
+
+                // Clear existing catalogs
+                this.aladin.removeLayers();
+
+                if (this.filteredTransits.length === 0) return;
+
+                const catalog = A.catalog({
+                    name: 'Exoplanet Transits',
+                    sourceSize: 14,
+                    color: '#8a2be2',
+                    shape: 'circle'
+                });
+
+                this.filteredTransits.forEach(transit => {
+                    const source = A.source(transit.ra_deg, transit.dec_deg, {
+                        name: `${transit.exo_match.planet} (${transit.exo_match.host})`,
+                        planet: transit.exo_match.planet,
+                        host: transit.exo_match.host,
+                        observer: transit.observer || 'Unknown',
+                        confidence: ((transit.confidence || 0) * 100).toFixed(0) + '%',
+                        period: transit.exo_match.period_days ? `${transit.exo_match.period_days} days` : 'Unknown',
+                        depth: transit.exo_match.depth_ppm ? `${transit.exo_match.depth_ppm} ppm` : 'Unknown'
+                    });
+
+                    catalog.addSources([source]);
+                });
+
+                this.aladin.addCatalog(catalog);
+
+                // Center on first transit if available
+                if (this.filteredTransits.length > 0) {
+                    const first = this.filteredTransits[0];
+                    this.aladin.gotoRaDec(first.ra_deg, first.dec_deg);
+                }
+            }
+
+            renderTransits() {
+                const grid = document.getElementById('transits-grid');
+                grid.innerHTML = '';
+
+                if (this.filteredTransits.length === 0) {
+                    this.showLoading(false);
+                    return;
+                }
+
+                this.filteredTransits.forEach((transit, index) => {
+                    const card = this.createTransitCard(transit);
+                    card.style.animationDelay = `${index * 0.1}s`;
+                    card.classList.add('fade-in');
+                    grid.appendChild(card);
+                });
+
+                this.showLoading(false);
+            }
+
+            createTransitCard(transit) {
+                const card = document.createElement('div');
+                card.className = 'transit-card';
+
+                const confidence = ((transit.confidence || 0) * 100).toFixed(0);
+                const exo = transit.exo_match;
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <div class="planet-name">${exo.planet}</div>
+                            <div class="host-star">Host: ${exo.host}</div>
+                        </div>
+                        <div class="confidence-badge">${confidence}%</div>
+                    </div>
+
+                    <div class="card-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Coordinates</span>
+                            <span class="detail-value">${transit.ra_deg.toFixed(4)}°, ${transit.dec_deg.toFixed(4)}°</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Separation</span>
+                            <span class="detail-value">${exo.sep_arcsec}"</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Orbital Period</span>
+                            <span class="detail-value">${exo.period_days ? `${exo.period_days} days` : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Transit Depth</span>
+                            <span class="detail-value">${exo.depth_ppm ? `${exo.depth_ppm} ppm` : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Detection Time</span>
+                            <span class="detail-value">${transit.timestamp_utc ? new Date(transit.timestamp_utc).toLocaleDateString() : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Frame</span>
+                            <span class="detail-value">#${transit.frame}</span>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="observer-info">
+                            Detected by: ${transit.observer || 'Unknown'}
+                        </div>
+                        <a href="#" class="view-details" onclick="viewTransitDetails(${JSON.stringify(transit).replace(/"/g, '&quot;')})">
+                            View Details →
+                        </a>
+                    </div>
+                `;
+
+                return card;
+            }
+
+            updateStats() {
+                const totalCandidates = this.filteredTransits.length;
+                const knownMatches = this.filteredTransits.filter(t => t.exo_match).length;
+                const uniqueSystems = new Set(this.filteredTransits.map(t => t.exo_match?.host)).size;
+
+                this.animateCounter('total-candidates', totalCandidates);
+                this.animateCounter('known-matches', knownMatches);
+                this.animateCounter('unique-systems', uniqueSystems);
+            }
+
+            animateCounter(id, target) {
+                const element = document.getElementById(id);
+                let current = 0;
+                const increment = Math.max(1, Math.ceil(target / 30));
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        current = target;
+                        clearInterval(timer);
+                    }
+                    element.textContent = current.toLocaleString();
+                }, 50);
+            }
+
+            setupEventListeners() {
+                document.getElementById('confidence-filter').addEventListener('change', () => this.applyFilters());
+                document.getElementById('period-filter').addEventListener('change', () => this.applyFilters());
+                document.getElementById('search-input').addEventListener('input', () => this.applyFilters());
+            }
+
+            showError() {
+                const grid = document.getElementById('transits-grid');
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--error);">
+                        <h3>⚠️ Error Loading Data</h3>
+                        <p>Failed to load exoplanet transit data. Please try refreshing the page.</p>
+                        <button class="btn" onclick="location.reload()">Retry</button>
+                    </div>
+                `;
+                this.showLoading(false);
+            }
         }
-      }
-    });
-  </script>
+
+        // Global function for viewing transit details
+        function viewTransitDetails(transit) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 2000;
+                padding: 2rem;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: var(--surface);
+                border-radius: 15px;
+                padding: 2rem;
+                max-width: 600px;
+                width: 100%;
+                max-height: 80vh;
+                overflow-y: auto;
+                border: 1px solid var(--exoplanet);
+            `;
+
+            const exo = transit.exo_match;
+            const confidence = ((transit.confidence || 0) * 100).toFixed(1);
+
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                    <div>
+                        <h2 style="color: var(--exoplanet); margin: 0 0 0.5rem 0;">${exo.planet}</h2>
+                        <p style="color: var(--text-secondary); margin: 0;">Host Star: ${exo.host}</p>
+                    </div>
+                    <button onclick="this.closest('.modal').remove()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer;">×</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div>
+                        <h4 style="color: var(--accent); margin: 0 0 0.5rem 0;">Detection Details</h4>
+                        <p><strong>Confidence:</strong> ${confidence}%</p>
+                        <p><strong>Observer:</strong> ${transit.observer || 'Unknown'}</p>
+                        <p><strong>Frame:</strong> #${transit.frame}</p>
+                        <p><strong>Detection Time:</strong> ${transit.timestamp_utc ? new Date(transit.timestamp_utc).toLocaleString() : 'Unknown'}</p>
+                    </div>
+
+                    <div>
+                        <h4 style="color: var(--accent); margin: 0 0 0.5rem 0;">Coordinates</h4>
+                        <p><strong>RA:</strong> ${transit.ra_deg.toFixed(6)}°</p>
+                        <p><strong>Dec:</strong> ${transit.dec_deg.toFixed(6)}°</p>
+                        <p><strong>Separation:</strong> ${exo.sep_arcsec}"</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div>
+                        <h4 style="color: var(--accent); margin: 0 0 0.5rem 0;">Orbital Properties</h4>
+                        <p><strong>Period:</strong> ${exo.period_days ? `${exo.period_days} days` : 'Unknown'}</p>
+                        <p><strong>Transit Depth:</strong> ${exo.depth_ppm ? `${exo.depth_ppm} ppm` : 'Unknown'}</p>
+                    </div>
+
+                    <div>
+                        <h4 style="color: var(--accent); margin: 0 0 0.5rem 0;">Photometry</h4>
+                        <p><strong>Z-Score:</strong> ${transit.z_score ? transit.z_score.toFixed(2) : 'N/A'}</p>
+                        <p><strong>Event Type:</strong> ${transit.dimming ? 'Dimming (Transit)' : 'Brightening'}</p>
+                    </div>
+                </div>
+
+                <div style="background: var(--surface-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="color: var(--warning); margin: 0 0 0.5rem 0;">⚠️ Important Note</h4>
+                    <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+                        This is a <strong>candidate detection</strong> that requires further analysis and confirmation.
+                        The match with known exoplanet ${exo.planet} suggests this could be a genuine transit event,
+                        but follow-up observations are needed for verification.
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <button onclick="this.closest('.modal').remove()" class="btn">Close</button>
+                </div>
+            `;
+
+            modal.className = 'modal';
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            // Close on outside click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // Global filter function
+        function applyFilters() {
+            if (window.exoplanetViewer) {
+                window.exoplanetViewer.applyFilters();
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.exoplanetViewer = new ExoplanetViewer();
+        });
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Navigation scroll effect
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.style.background = 'rgba(10, 10, 10, 0.98)';
+            } else {
+                nav.style.background = 'rgba(10, 10, 10, 0.95)';
+            }
+        });
+
+        // Keyboard shortcuts for accessibility
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => modal.remove());
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,19 @@
+include README.md
+include CONTRIBUTING.md
+include LICENSE
+include requirements.txt
+include requirements-dev.txt
+recursive-include docs *.md *.rst *.txt
+recursive-include tests *.py
+recursive-include pulsehunter *.py
+include *.html
+include *.css
+include *.js
+include *.php
+exclude *.fits
+exclude *.fit
+exclude *.fts
+exclude detections/*
+exclude reports/*
+exclude output/*
+exclude data/*
