@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
                              QWidget, QSplitter, QFrame)
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QSettings, QRect
 from PyQt6.QtGui import QIcon, QFont
+from PyQt6.QtWidgets import QDialog
 import threading
 import time
 import logging

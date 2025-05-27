@@ -6,7 +6,7 @@ Enhanced with improved calibration dialog and ASTAP integration
 import sys
 import os
 from pathlib import Path
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QMenuBar, QVBoxLayout, QWidget, QStatusBar, QMessageBox, QLabel, QHBoxLayout, QGroupBox, QPushButton, QTextEdit, QSplitter, QTabWidget, QProgressBar, QFileDialog)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QMenuBar, QVBoxLayout, QWidget, QStatusBar, QMessageBox, QLabel, QHBoxLayout, QGroupBox, QPushButton, QTextEdit, QSplitter, QTabWidget, QProgressBar, QFileDialog, QDialog)
 from PyQt6.QtGui import QAction
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QSettings, QTimer, Qt, QThread, pyqtSignal
