@@ -1,0 +1,10 @@
+[bandit]
+# Exclude virtual environment completely
+exclude_dirs = .venv,backup_before_flake8_fix,node_modules,.git
+
+# Skip false positives for legitimate scientific code
+skips = B101,B608
+
+# Your project-specific exceptions
+[bandit.subprocess_without_shell_equals_true]
+# Allow subprocess for astronomy tools like ASTAP

@@ -261,7 +261,9 @@ def save_report(detections, output_path="pulse_report.json"):
         with open(output_path, "r") as f:
             data = f.read()
         response = requests.post(
-            "https://geekastro.dev/pulsehunter/submit_report.php", data=data
+            "https://geekastro.dev/pulsehunter/submit_report.php",
+            data=data,
+            timeout=30,  # Add timeout
         )
         if response.ok:
             print("✅ Report uploaded successfully.")
