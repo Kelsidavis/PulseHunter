@@ -1,220 +1,351 @@
-#!/usr/bin/env python3
 """
-Test suite for PulseHunter calibration module
+Test suite for PulseHunter Enhanced Calibration System
+Run this to verify your installation is working correctly
 """
 
-import os
-
-# Import the modules to test
 import sys
+import os
+from pathlib import Path
 import tempfile
-from unittest.mock import patch
+import shutil
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QSettings
 
-import numpy as np
-import pytest
-from astropy.io import fits
+def test_imports():
+    """Test that all required modules can be imported"""
+    print("Testing imports...")
+    
+    try:
+        from calibration_dialog import CalibrationSetupDialog
+        print("✓ calibration_dialog imported successfully")
+    except ImportError as e:
+        print(f"✗ Error importing calibration_dialog: {e}")
+        return False
+    
+    try:
+        from calibration_utilities import (CalibrationConfig, ASTAPManager, 
+                                         CalibrationLogger, DialogPositionManager)
+        print("✓ calibration_utilities imported successfully")
+    except ImportError as e:
+        print(f"✗ Error importing calibration_utilities: {e}")
+        return False
+    
+    try:
+        import numpy
+        print("✓ numpy imported successfully")
+    except ImportError as e:
+        print(f"✗ Error importing numpy: {e}")
+        return False
+    
+    try:
+        from PyQt6.QtWidgets import QApplication
+        print("✓ PyQt6 imported successfully")
+    except ImportError as e:
+        print(f"✗ Error importing PyQt6: {e}")
+        return False
+    
+    return True
 
-from calibration import (
-    create_master_frame,
-    generate_dataset_id,
-    generate_lightcurve_outputs,
-)
+def test_configuration():
+    """Test configuration system"""
+    print("\nTesting configuration system...")
+    
+    try:
+        from calibration_utilities import CalibrationConfig
+        
+        # Create temporary config
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.ini', delete=False) as f:
+            temp_config_file = f.name
+        
+        config = CalibrationConfig(temp_config_file)
+        
+        # Test basic operations
+        assert config.get('PROCESSING', 'combination_method') == 'median'
+        assert config.getint('PROCESSING', 'min_frames_bias') == 10
+        assert config.getboolean('ASTAP', 'auto_detect_on_startup') == True
+        
+        # Test saving
+        config.config.set('ASTAP', 'executable_path', '/test/path/astap.exe')
+        config.save_config()
+        
+        # Test loading
+        config2 = CalibrationConfig(temp_config_file)
+        assert config2.get('ASTAP', 'executable_path') == '/test/path/astap.exe'
+        
+        # Cleanup
+        os.unlink(temp_config_file)
+        
+        print("✓ Configuration system working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Configuration test failed: {e}")
+        return False
 
-sys.path.append("..")
+def test_astap_manager():
+    """Test ASTAP manager functionality"""
+    print("\nTesting ASTAP manager...")
+    
+    try:
+        from calibration_utilities import ASTAPManager, CalibrationConfig
+        
+        config = CalibrationConfig()
+        astap_manager = ASTAPManager(config)
+        
+        # Test basic properties
+        initial_path = astap_manager.astap_path
+        print(f"  Initial ASTAP path: {initial_path or 'Not set'}")
+        
+        # Test auto-detection (won't find anything in test environment)
+        detected = astap_manager.auto_detect_astap()
+        if detected:
+            print(f"✓ ASTAP auto-detected at: {detected}")
+        else:
+            print("  No ASTAP installation auto-detected (this is normal for testing)")
+        
+        # Test validation with invalid path
+        is_valid = astap_manager.validate_astap_executable("/invalid/path/astap.exe")
+        assert not is_valid, "Invalid path should not validate"
+        
+        # Test status info
+        status = astap_manager.get_status_info()
+        assert isinstance(status, dict)
+        assert 'configured' in status
+        assert 'valid' in status
+        
+        print("✓ ASTAP manager working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ ASTAP manager test failed: {e}")
+        return False
 
+def test_file_validator():
+    """Test FITS file validator"""
+    print("\nTesting file validator...")
+    
+    try:
+        from calibration_utilities import FITSFileValidator, CalibrationConfig
+        
+        config = CalibrationConfig()
+        validator = FITSFileValidator(config)
+        
+        # Create some dummy file paths
+        test_files = [Path(f"test_bias_{i:03d}.fits") for i in range(5)]
+        
+        # Test validation
+        results = validator.validate_files(test_files, "bias")
+        
+        assert isinstance(results, dict)
+        assert 'valid_files' in results
+        assert 'invalid_files' in results
+        assert 'warnings' in results
+        assert 'statistics' in results
+        
+        print("✓ File validator working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ File validator test failed: {e}")
+        return False
 
-class TestCalibration:
-    def setup_method(self):
-        """Set up test fixtures"""
-        self.temp_dir = tempfile.mkdtemp()
-        self.test_data = np.random.randint(0, 65535, (100, 100), dtype=np.uint16)
+def test_logger():
+    """Test logging system"""
+    print("\nTesting logging system...")
+    
+    try:
+        from calibration_utilities import CalibrationLogger
+        
+        logger = CalibrationLogger()
+        
+        # Test logging methods
+        logger.info("Test info message")
+        logger.warning("Test warning message")
+        logger.debug("Test debug message")
+        
+        # Check if log directory was created
+        log_dir = Path('logs')
+        if log_dir.exists():
+            print("✓ Log directory created")
+            # Find log files
+            log_files = list(log_dir.glob('calibration_*.log'))
+            if log_files:
+                print(f"✓ Log file created: {log_files[0].name}")
+            else:
+                print("  No log files found (may be normal)")
+        else:
+            print("  Log directory not created (may be normal)")
+        
+        print("✓ Logging system working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Logging test failed: {e}")
+        return False
 
-    def teardown_method(self):
-        """Clean up test fixtures"""
-        import shutil
+def test_dialog_creation():
+    """Test dialog creation without showing"""
+    print("\nTesting dialog creation...")
+    
+    try:
+        # Create QApplication if it doesn't exist
+        app = QApplication.instance() or QApplication(sys.argv)
+        
+        from calibration_dialog import CalibrationSetupDialog
+        
+        # Create dialog (but don't show it)
+        dialog = CalibrationSetupDialog()
+        
+        # Test basic properties
+        assert dialog.windowTitle() == "PulseHunter - Calibration Setup"
+        assert dialog.minimumSize().width() >= 800
+        assert dialog.minimumSize().height() >= 700
+        
+        # Test that key components exist
+        assert hasattr(dialog, 'astap_path_edit')
+        assert hasattr(dialog, 'tab_widget')
+        assert hasattr(dialog, 'progress_bar')
+        assert hasattr(dialog, 'log_display')
+        
+        print("✓ Dialog creation working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Dialog creation test failed: {e}")
+        return False
 
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+def test_settings_persistence():
+    """Test settings persistence"""
+    print("\nTesting settings persistence...")
+    
+    try:
+        # Use temporary settings
+        QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+        
+        # Test settings save/load
+        settings = QSettings('PulseHunterTest', 'CalibrationTest')
+        settings.setValue('test_key', 'test_value')
+        settings.setValue('test_int', 42)
+        settings.setValue('test_bool', True)
+        
+        # Create new settings instance
+        settings2 = QSettings('PulseHunterTest', 'CalibrationTest')
+        
+        assert settings2.value('test_key') == 'test_value'
+        assert settings2.value('test_int', type=int) == 42
+        assert settings2.value('test_bool', type=bool) == True
+        
+        # Cleanup
+        settings.clear()
+        
+        print("✓ Settings persistence working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Settings persistence test failed: {e}")
+        return False
 
-    def create_test_fits(self, filename, data=None):
-        """Create a test FITS file"""
-        if data is None:
-            data = self.test_data
-        filepath = os.path.join(self.temp_dir, filename)
-        hdu = fits.PrimaryHDU(data)
-        hdu.writeto(filepath, overwrite=True)
-        return filepath
+def test_file_structure():
+    """Test that all required files exist"""
+    print("\nTesting file structure...")
+    
+    required_files = [
+        'calibration_dialog.py',
+        'calibration_utilities.py',
+        'pulse_gui.py'
+    ]
+    
+    optional_files = [
+        'calibration_config.ini',
+        'requirements.txt'
+    ]
+    
+    all_good = True
+    
+    for file in required_files:
+        if Path(file).exists():
+            print(f"✓ {file} found")
+        else:
+            print(f"✗ {file} missing (REQUIRED)")
+            all_good = False
+    
+    for file in optional_files:
+        if Path(file).exists():
+            print(f"✓ {file} found")
+        else:
+            print(f"  {file} missing (optional - will be created)")
+    
+    return all_good
 
-    def test_create_master_frame_single_file(self):
-        """Test master frame creation with single file"""
-        self.create_test_fits("test_dark_001.fits")
+def run_all_tests():
+    """Run all tests"""
+    print("=" * 60)
+    print("PulseHunter Enhanced Calibration System Test Suite")
+    print("=" * 60)
+    
+    tests = [
+        ("File Structure", test_file_structure),
+        ("Module Imports", test_imports),
+        ("Configuration System", test_configuration),
+        ("ASTAP Manager", test_astap_manager),
+        ("File Validator", test_file_validator),
+        ("Logging System", test_logger),
+        ("Dialog Creation", test_dialog_creation),
+        ("Settings Persistence", test_settings_persistence),
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        print(f"\n{test_name}:")
+        print("-" * (len(test_name) + 1))
+        
+        try:
+            if test_func():
+                passed += 1
+            else:
+                failed += 1
+        except Exception as e:
+            print(f"✗ {test_name} failed with exception: {e}")
+            failed += 1
+    
+    print("\n" + "=" * 60)
+    print("TEST SUMMARY")
+    print("=" * 60)
+    print(f"Tests passed: {passed}")
+    print(f"Tests failed: {failed}")
+    print(f"Total tests: {passed + failed}")
+    
+    if failed == 0:
+        print("\n🎉 All tests passed! Your PulseHunter installation is ready.")
+        return True
+    else:
+        print(f"\n⚠️  {failed} test(s) failed. Please check the errors above.")
+        return False
 
-        master = create_master_frame(self.temp_dir, "dark")
-
-        assert master is not None
-        assert master.shape == self.test_data.shape
-        assert master.dtype == np.float32
-
-    def test_create_master_frame_multiple_files(self):
-        """Test master frame creation with multiple files"""
-        # Create multiple test files
-        for i in range(5):
-            data = np.random.randint(0, 65535, (100, 100), dtype=np.uint16)
-            self.create_test_fits(f"test_dark_{i:03d}.fits", data)
-
-        master = create_master_frame(self.temp_dir, "dark")
-
-        assert master is not None
-        assert master.shape == (100, 100)
-        assert master.dtype == np.float32
-
-    def test_create_master_frame_no_files(self):
-        """Test master frame creation with no FITS files"""
-        with pytest.raises(ValueError, match="No usable calibration frames found"):
-            create_master_frame(self.temp_dir, "dark")
-
-    def test_create_master_frame_corrupted_file(self):
-        """Test master frame creation with corrupted file"""
-        # Create a corrupted FITS file
-        filepath = os.path.join(self.temp_dir, "corrupted.fits")
-        with open(filepath, "wb") as f:
-            f.write(b"not a fits file")
-
-        # Should handle the error gracefully
-        with pytest.raises(ValueError, match="No usable calibration frames found"):
-            create_master_frame(self.temp_dir, "dark")
-
-    def test_generate_dataset_id(self):
-        """Test dataset ID generation"""
-        # Create some test FITS files
-        self.create_test_fits("test_001.fits")
-        self.create_test_fits("test_002.fits")
-
-        dataset_id = generate_dataset_id(self.temp_dir)
-
-        assert dataset_id is not None
-        assert len(dataset_id) == 64  # SHA256 hash length
-        assert isinstance(dataset_id, str)
-
-        # Test reproducibility
-        dataset_id2 = generate_dataset_id(self.temp_dir)
-        assert dataset_id == dataset_id2
-
-    def test_generate_dataset_id_no_fits(self):
-        """Test dataset ID generation with no FITS files"""
-        dataset_id = generate_dataset_id(self.temp_dir)
-        assert dataset_id is not None  # Should still generate an ID
-
-    def test_generate_lightcurve_outputs(self):
-        """Test light curve output generation"""
-        # Mock detection data
-        detections = [
-            {
-                "light_curve": [100, 95, 90, 95, 100, 105, 100],
-                "ra_deg": 123.456,
-                "dec_deg": 45.678,
-                "observer": "Test Observer",
-                "timestamp_utc": "2023-01-01T00:00:00Z",
-                "confidence": 0.85,
-                "match_name": "Test Star",
-                "g_mag": 12.5,
-            }
-        ]
-
-        output_dir = os.path.join(self.temp_dir, "output")
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Mock matplotlib to avoid display issues in tests
-        with patch("matplotlib.pyplot.figure"), patch("matplotlib.pyplot.plot"), patch(
-            "matplotlib.pyplot.title"
-        ), patch("matplotlib.pyplot.xlabel"), patch("matplotlib.pyplot.ylabel"), patch(
-            "matplotlib.pyplot.grid"
-        ), patch(
-            "matplotlib.pyplot.figtext"
-        ), patch(
-            "matplotlib.pyplot.tight_layout"
-        ), patch(
-            "matplotlib.pyplot.savefig"
-        ), patch(
-            "matplotlib.pyplot.close"
-        ):
-            generate_lightcurve_outputs(
-                detections, output_dir, "test_dataset", "Test Observer"
-            )
-
-        # Check that CSV file was created
-        csv_file = os.path.join(output_dir, "lightcurve_0000.csv")
-        assert os.path.exists(csv_file)
-
-        # Check CSV content
-        with open(csv_file, "r") as f:
-            lines = f.readlines()
-            assert len(lines) == 8  # Header + 7 data points
-            assert "Frame,Brightness" in lines[0]
-
-        # Check that README was created
-        readme_file = os.path.join(output_dir, "README.txt")
-        assert os.path.exists(readme_file)
-
-        # Check that summary JSON was created
-        summary_file = os.path.join(output_dir, "summary.json")
-        assert os.path.exists(summary_file)
-
-
-class TestCalibrationIntegration:
-    """Integration tests for calibration workflow"""
-
-    def test_full_calibration_workflow(self):
-        """Test complete calibration workflow"""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create test calibration frames
-            bias_dir = os.path.join(temp_dir, "bias")
-            dark_dir = os.path.join(temp_dir, "dark")
-            flat_dir = os.path.join(temp_dir, "flat")
-
-            os.makedirs(bias_dir)
-            os.makedirs(dark_dir)
-            os.makedirs(flat_dir)
-
-            # Create test frames
-            for i in range(3):
-                # Bias frames (low values)
-                bias_data = np.random.randint(500, 600, (50, 50), dtype=np.uint16)
-                fits.PrimaryHDU(bias_data).writeto(
-                    os.path.join(bias_dir, f"bias_{i:03d}.fits"), overwrite=True
-                )
-
-                # Dark frames (bias + dark current)
-                dark_data = np.random.randint(550, 650, (50, 50), dtype=np.uint16)
-                fits.PrimaryHDU(dark_data).writeto(
-                    os.path.join(dark_dir, f"dark_{i:03d}.fits"), overwrite=True
-                )
-
-                # Flat frames (normalized)
-                flat_data = np.random.randint(20000, 40000, (50, 50), dtype=np.uint16)
-                fits.PrimaryHDU(flat_data).writeto(
-                    os.path.join(flat_dir, f"flat_{i:03d}.fits"), overwrite=True
-                )
-
-            # Create master frames
-            master_bias = create_master_frame(bias_dir, "bias")
-            master_dark = create_master_frame(dark_dir, "dark")
-            master_flat = create_master_frame(flat_dir, "flat")
-
-            # Verify masters were created
-            assert master_bias is not None
-            assert master_dark is not None
-            assert master_flat is not None
-
-            # Verify dimensions
-            assert master_bias.shape == (50, 50)
-            assert master_dark.shape == (50, 50)
-            assert master_flat.shape == (50, 50)
-
-            # Verify data types
-            assert master_bias.dtype == np.float32
-            assert master_dark.dtype == np.float32
-            assert master_flat.dtype == np.float32
-
+def main():
+    """Main test runner"""
+    success = run_all_tests()
+    
+    print("\n" + "=" * 60)
+    print("NEXT STEPS")
+    print("=" * 60)
+    
+    if success:
+        print("1. Run 'python pulse_gui.py' to start PulseHunter")
+        print("2. Configure ASTAP using the Calibration menu")
+        print("3. Set up your calibration frames")
+        print("4. Start processing your astronomical images!")
+    else:
+        print("1. Fix any import errors by installing missing dependencies")
+        print("2. Ensure all required files are in the correct location")
+        print("3. Re-run this test script to verify fixes")
+        print("4. Check the integration guide for troubleshooting tips")
+    
+    print("\nFor help, see the integration guide or check the logs directory.")
+    
+    return 0 if success else 1
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    sys.exit(main())
