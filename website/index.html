@@ -1,16 +1,15 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>PulseHunter - Optical SETI &amp; Exoplanet Detection Network</title>
-<meta content="Open-source optical SETI and exoplanet detection network for amateur astronomers. Join the search for extraterrestrial intelligence and discover new worlds." name="description"/>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseHunter - Optical SETI & Exoplanet Detection Network</title>
+    <meta name="description" content="Open-source optical SETI and exoplanet detection network for amateur astronomers. Join the search for extraterrestrial intelligence and discover new worlds.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-<style>
+    <style>
         :root {
             --primary: #0066cc;
             --primary-dark: #004d99;
@@ -268,202 +267,26 @@
             margin: 0 auto;
             background: var(--surface);
             border-radius: 15px;
-            padding: 2rem;
+            padding: 1.5rem;
             border: 1px solid rgba(0, 212, 255, 0.2);
             position: relative;
             height: 600px;
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.1);
         }
 
-        #skymap-canvas {
+        #starmap-iframe {
             width: 100%;
             height: 100%;
-            border-radius: 10px;
-            cursor: grab;
-            background: radial-gradient(ellipse at center, rgba(0, 100, 204, 0.03) 0%, transparent 70%);
-        }
-
-        #skymap-canvas:active {
-            cursor: grabbing;
-        }
-
-        .skymap-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 100;
-        }
-
-        .control-group {
-            background: rgba(26, 26, 26, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 8px;
-            padding: 12px;
-            border: 1px solid var(--border);
-            min-width: 180px;
-        }
-
-        .control-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .skymap-controls .btn {
-            background: var(--primary);
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            font-size: 12px;
-            margin-bottom: 4px;
-            width: 100%;
-        }
-
-        .skymap-controls .btn:hover {
-            background: var(--accent);
-        }
-
-        .skymap-controls .btn-secondary {
-            background: var(--surface-light);
-            border: 1px solid var(--border);
-        }
-
-        .skymap-controls select {
-            background: var(--surface-light);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 4px 6px;
-            color: var(--text-primary);
-            font-size: 11px;
-            width: 100%;
-            margin-bottom: 4px;
-        }
-
-        .skymap-info {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(26, 26, 26, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 8px;
-            padding: 12px;
-            border: 1px solid var(--border);
-            min-width: 200px;
-            z-index: 100;
-        }
-
-        .coords-display {
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 11px;
-            color: var(--accent);
-            margin-bottom: 8px;
-            padding: 6px;
-            background: var(--surface-light);
-            border-radius: 4px;
-        }
-
-        .skymap-legend {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .skymap-legend-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .skymap-legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 10px;
-        }
-
-        .skymap-legend-color {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .zoom-indicator {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(26, 26, 26, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 11px;
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
-            font-family: 'Monaco', 'Menlo', monospace;
-        }
-
-        .skymap-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 300;
-            background: rgba(26, 26, 26, 0.95);
-            padding: 24px;
+            border: 0;
             border-radius: 12px;
-            border: 1px solid var(--border);
-        }
-
-        .skymap-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid rgba(0, 212, 255, 0.2);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 12px;
-        }
-
-        .object-popup {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.95);
-            border: 1px solid var(--accent);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 12px;
-            max-width: 250px;
-            z-index: 200;
-            pointer-events: none;
-            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
-        }
-
-        .popup-title {
-            color: var(--accent);
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .popup-detail {
-            color: var(--text-secondary);
-            margin-bottom: 3px;
+            overflow: hidden;
         }
 
         .legend {
             display: flex;
             justify-content: center;
             gap: 2rem;
-            margin-top: 1rem;
+            margin-top: 2rem;
             flex-wrap: wrap;
         }
 
@@ -482,6 +305,7 @@
         .legend-high { background: #00c851; }
         .legend-medium { background: #ffbb33; }
         .legend-low { background: #ff4444; }
+        .legend-exoplanet { background: #8a2be2; }
 
         /* Detection Table */
         .table-container {
@@ -595,6 +419,28 @@
             color: var(--accent);
         }
 
+        /* Loading States */
+        .loading {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            margin: 2rem 0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 212, 255, 0.3);
+            border-left: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Mobile Responsiveness */
         @media (max-width: 768px) {
             .nav-container {
@@ -628,40 +474,10 @@
                 gap: 1rem;
             }
 
-            .skymap-controls, .skymap-info {
-                position: relative;
-                top: auto;
-                left: auto;
-                right: auto;
-                margin: 10px auto;
-                max-width: 300px;
-            }
-
             .sky-map-container {
                 height: 400px;
+                padding: 1rem;
             }
-        }
-
-        /* Loading Animation */
-        .loading {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            margin: 2rem 0;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(0, 212, 255, 0.3);
-            border-left: 4px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         /* Smooth scrolling */
@@ -671,905 +487,250 @@
     </style>
 </head>
 <body>
-<nav>
-<div class="nav-container">
-<a class="logo" href="#">PulseHunter</a>
-<ul class="nav-links">
-<li><a href="#sky-map">Sky Map</a></li>
-<li><a href="#exoplanets">Exoplanets</a></li>
-<li><a href="#features">Features</a></li>
-<li><a href="https://github.com/Kelsidavis/PulseHunter" target="_blank">GitHub</a></li>
-</ul>
-</div>
-</nav>
-<section class="hero">
-<div class="hero-content">
-<h1>PulseHunter</h1>
-<p class="subtitle">Optical SETI &amp; Exoplanet Detection Network</p>
-<p class="description">
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="logo">PulseHunter</a>
+            <ul class="nav-links">
+                <li><a href="#sky-map">Sky Map</a></li>
+                <li><a href="exoplanet_transits.html">Exoplanets</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="https://github.com/Kelsidavis/PulseHunter" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>PulseHunter</h1>
+            <p class="subtitle">Optical SETI & Exoplanet Detection Network</p>
+            <p class="description">
                 Join amateur astronomers worldwide in the search for extraterrestrial intelligence and exoplanet transits.
                 Our open-source platform democratizes cutting-edge astronomical detection methods.
             </p>
-<div class="cta-buttons">
-<a class="btn btn-primary" href="#sky-map">Explore Detections</a>
-<a class="btn btn-secondary" href="exoplanet_transits.html">View Exoplanets</a>
-</div>
-</div>
-</section>
-<section class="stats">
-<div class="stats-container">
-<div class="stat-item">
-<span class="stat-number" id="total-detections">0</span>
-<span class="stat-label">Total Detections</span>
-</div>
-<div class="stat-item">
-<span class="stat-number" id="active-observers">0</span>
-<span class="stat-label">Active Observers</span>
-</div>
-<div class="stat-item">
-<span class="stat-number" id="exoplanet-candidates">0</span>
-<span class="stat-label">Exoplanet Candidates</span>
-</div>
-<div class="stat-item">
-<span class="stat-number" id="high-confidence">0</span>
-<span class="stat-label">High Confidence Events</span>
-</div>
-</div>
-</section>
-<section class="sky-section" id="sky-map">
-<h2 class="section-title">Professional Star Map</h2>
-<p class="section-subtitle">
-            Interactive visualization of detections plotted against real star positions.
-            Navigate the night sky with accurate stellar coordinates and astronomical context.
+            <div class="cta-buttons">
+                <a class="btn btn-primary" href="#sky-map">Explore Detections</a>
+                <a class="btn btn-secondary" href="exoplanet_transits.html">View Exoplanets</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-number" id="total-detections">0</span>
+                <span class="stat-label">Total Detections</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="active-observers">0</span>
+                <span class="stat-label">Active Observers</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="exoplanet-candidates">0</span>
+                <span class="stat-label">Exoplanet Candidates</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="high-confidence">0</span>
+                <span class="stat-label">High Confidence Events</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="sky-section" id="sky-map">
+        <h2 class="section-title">Interactive Sky Map</h2>
+        <p class="section-subtitle">
+            Professional star map visualization with real astronomical data.
+            Navigate the night sky and explore detection locations with accurate stellar coordinates.
         </p>
-<div class="sky-map-container">
-    <canvas id="skymap-canvas"></canvas>
 
-    <div class="skymap-controls">
-        <div class="control-group">
-            <div class="control-title">Navigation</div>
-            <button class="btn" onclick="skyMap.zoomIn()">🔍 Zoom In</button>
-            <button class="btn" onclick="skyMap.zoomOut()">🔍 Zoom Out</button>
-            <button class="btn btn-secondary" onclick="skyMap.resetView()">🎯 Reset</button>
+        <div class="sky-map-container">
+            <iframe src="starmap.html" id="starmap-iframe"></iframe>
         </div>
 
-        <div class="control-group">
-            <div class="control-title">Filters</div>
-            <select id="confidence-filter" onchange="skyMap.applyFilters()">
-                <option value="0">All Detections</option>
-                <option value="50">50%+ Confidence</option>
-                <option value="70" selected>70%+ Confidence</option>
-                <option value="80">80%+ Confidence</option>
-                <option value="90">90%+ Confidence</option>
-            </select>
-            <select id="type-filter" onchange="skyMap.applyFilters()">
-                <option value="all">All Types</option>
-                <option value="dimming">Dimming Events</option>
-                <option value="brightening">Brightening Events</option>
-                <option value="exoplanet">Exoplanet Candidates</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="skymap-info">
-        <div class="coords-display" id="coords-display">
-            RA: 000.000°<br>
-            DEC: +00.000°
-        </div>
-
-        <div class="skymap-legend">
-            <div class="skymap-legend-title">Stars</div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #9bb0ff;"></div>
-                <span>Blue-White (Hot)</span>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color legend-high"></div>
+                <span>High Confidence (≥80%)</span>
             </div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #fff4ea;"></div>
-                <span>White-Yellow</span>
+            <div class="legend-item">
+                <div class="legend-color legend-medium"></div>
+                <span>Medium Confidence (50-80%)</span>
             </div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #ff7f00;"></div>
-                <span>Orange-Red (Cool)</span>
+            <div class="legend-item">
+                <div class="legend-color legend-low"></div>
+                <span>Low Confidence (&lt;50%)</span>
             </div>
-
-            <div class="skymap-legend-title" style="margin-top: 8px;">Detections</div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #00c851;"></div>
-                <span>High Confidence</span>
-            </div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #ffbb33;"></div>
-                <span>Medium Confidence</span>
-            </div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #ff4444;"></div>
-                <span>Low Confidence</span>
-            </div>
-            <div class="skymap-legend-item">
-                <div class="skymap-legend-color" style="background: #8a2be2;"></div>
+            <div class="legend-item">
+                <div class="legend-color legend-exoplanet"></div>
                 <span>Exoplanet Candidates</span>
             </div>
         </div>
-    </div>
 
-    <div class="zoom-indicator" id="zoom-indicator">
-        Zoom: 1.0x • FOV: 180°
-    </div>
+        <div class="table-container">
+            <table id="detectionTable">
+                <thead>
+                    <tr>
+                        <th>Observer</th>
+                        <th>Coordinates</th>
+                        <th>Date (UTC)</th>
+                        <th>Confidence</th>
+                        <th>Type</th>
+                        <th>Match</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Detection data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-    <div class="skymap-loading" id="skymap-loading">
-        <div class="skymap-spinner"></div>
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Loading Star Catalog</div>
-        <div style="font-size: 12px; color: var(--text-secondary);">Fetching astronomical data...</div>
-    </div>
-</div>
-
-<div class="legend">
-<div class="legend-item">
-<div class="legend-color legend-high"></div>
-<span>High Confidence (&gt;80%)</span>
-</div>
-<div class="legend-item">
-<div class="legend-color legend-medium"></div>
-<span>Medium Confidence (50-80%)</span>
-</div>
-<div class="legend-item">
-<div class="legend-color legend-low"></div>
-<span>Low Confidence (&lt;50%)</span>
-</div>
-</div>
-
-<div class="table-container">
-<table id="detectionTable">
-<thead>
-<tr>
-<th>Observer</th>
-<th>Coordinates</th>
-<th>Date (UTC)</th>
-<th>Confidence</th>
-<th>Type</th>
-<th>Match</th>
-</tr>
-</thead>
-<tbody>
-<!-- Detection data will be loaded here -->
-</tbody>
-</table>
-</div>
-</section>
-<section class="features" id="features">
-<div class="features-container">
-<h2 class="section-title">Advanced Detection Capabilities</h2>
-<p class="section-subtitle">
+    <section class="features" id="features">
+        <div class="features-container">
+            <h2 class="section-title">Advanced Detection Capabilities</h2>
+            <p class="section-subtitle">
                 State-of-the-art algorithms and collaborative networking for the amateur astronomy community
             </p>
-<div class="features-grid">
-<div class="feature-card">
-<div class="feature-icon">🔭</div>
-<h3 class="feature-title">Statistical Detection</h3>
-<p class="feature-description">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔭</div>
+                    <h3 class="feature-title">Statistical Detection</h3>
+                    <p class="feature-description">
                         Advanced z-score analysis identifies transient events with high precision,
                         filtering out noise and systematic artifacts automatically.
                     </p>
-</div>
-<div class="feature-card">
-<div class="feature-icon">🌟</div>
-<h3 class="feature-title">Catalog Cross-Matching</h3>
-<p class="feature-description">
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌟</div>
+                    <h3 class="feature-title">Catalog Cross-Matching</h3>
+                    <p class="feature-description">
                         Automatic cross-referencing with GAIA DR3 and NASA Exoplanet Archive
                         to identify known objects and potential transit candidates.
                     </p>
-</div>
-<div class="feature-card">
-<div class="feature-icon">📡</div>
-<h3 class="feature-title">Network Collaboration</h3>
-<p class="feature-description">
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📡</div>
+                    <h3 class="feature-title">Network Collaboration</h3>
+                    <p class="feature-description">
                         Join a global network of amateur astronomers, sharing discoveries and
                         contributing to citizen science projects.
                     </p>
-</div>
-<div class="feature-card">
-<div class="feature-icon">🪐</div>
-<h3 class="feature-title">Exoplanet Detection</h3>
-<p class="feature-description">
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🪐</div>
+                    <h3 class="feature-title">Exoplanet Detection</h3>
+                    <p class="feature-description">
                         Specialized algorithms for detecting exoplanet transits, with automatic
                         period analysis and depth measurements.
                     </p>
-</div>
-<div class="feature-card">
-<div class="feature-icon">📊</div>
-<h3 class="feature-title">Light Curve Analysis</h3>
-<p class="feature-description">
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">Light Curve Analysis</h3>
+                    <p class="feature-description">
                         Comprehensive photometric analysis generating publication-quality
                         light curves and statistical measurements.
                     </p>
-</div>
-<div class="feature-card">
-<div class="feature-icon">⚡</div>
-<h3 class="feature-title">Real-time Processing</h3>
-<p class="feature-description">
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Real-time Processing</h3>
+                    <p class="feature-description">
                         Fast, efficient processing of FITS sequences with real-time
                         feedback and progress monitoring.
                     </p>
-</div>
-</div>
-</div>
-</section>
-<footer>
-<div class="footer-content">
-<div class="footer-links">
-<a href="https://github.com/yourusername/pulsehunter">GitHub</a>
-<a href="https://geekastro.dev">GeekAstro</a>
-<a href="mailto:contact@geekastro.dev">Contact</a>
-<a href="#privacy">Privacy</a>
-</div>
-<p style="color: var(--text-secondary);">
-<strong>PulseHunter</strong> is an open-source project developed by
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="https://github.com/yourusername/pulsehunter">GitHub</a>
+                <a href="https://geekastro.dev">GeekAstro</a>
+                <a href="mailto:contact@geekastro.dev">Contact</a>
+                <a href="#privacy">Privacy</a>
+            </div>
+            <p style="color: var(--text-secondary);">
+                <strong>PulseHunter</strong> is an open-source project developed by
                 <a href="https://geekastro.dev" style="color: var(--accent);">Kelsi Davis</a>.
                 Empowering amateur astronomers in the search for extraterrestrial intelligence.
             </p>
-</div>
-</footer>
-<script>
-        // Professional Sky Map integrated into homepage
-        class HomepageSkyMap {
+        </div>
+    </footer>
+
+    <script>
+        // Simple statistics updater that loads data from the starmap
+        class StatisticsUpdater {
             constructor() {
-                this.canvas = document.getElementById('skymap-canvas');
-                this.ctx = this.canvas.getContext('2d');
-
-                // Data arrays
                 this.detections = [];
-                this.filteredDetections = [];
-                this.stars = [];
-                this.brightStars = [];
-
-                // View parameters
-                this.centerRA = 180;
-                this.centerDec = 0;
-                this.zoom = 1.0;
-                this.minZoom = 0.2;
-                this.maxZoom = 10.0;
-
-                // Interaction state
-                this.isDragging = false;
-                this.lastMouseX = 0;
-                this.lastMouseY = 0;
-                this.hoveredObject = null;
-
-                // Display settings
-                this.gridSpacing = 30;
-                this.detectionRadius = 4;
-
                 this.init();
             }
 
             async init() {
-                console.log('🚀 Initializing Homepage Sky Map...');
-
-                try {
-                    this.setupCanvas();
-                    this.setupEventListeners();
-
-                    await this.loadStarCatalog();
-                    await this.loadDetectionData();
-
-                    this.applyFilters();
-                    this.updateStatistics();
-                    this.hideLoading();
-                    this.render();
-
-                    console.log('✅ Sky map initialized successfully');
-
-                } catch (error) {
-                    console.error('❌ Failed to initialize sky map:', error);
-                    this.showError(error.message);
-                }
-            }
-
-            setupCanvas() {
-                const resizeCanvas = () => {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const dpr = window.devicePixelRatio || 1;
-
-                    this.canvas.width = rect.width * dpr;
-                    this.canvas.height = rect.height * dpr;
-                    this.ctx.scale(dpr, dpr);
-
-                    this.canvas.style.width = rect.width + 'px';
-                    this.canvas.style.height = rect.height + 'px';
-                };
-
-                resizeCanvas();
-                window.addEventListener('resize', () => {
-                    resizeCanvas();
-                    this.render();
-                });
-            }
-
-            setupEventListeners() {
-                // Mouse events
-                this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-                this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
-                this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
-                this.canvas.addEventListener('mouseleave', this.onMouseUp.bind(this));
-                this.canvas.addEventListener('wheel', this.onWheel.bind(this));
-                this.canvas.addEventListener('click', this.onClick.bind(this));
-
-                // Touch events
-                this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
-                this.canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
-                this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
-            }
-
-            async loadStarCatalog() {
-                console.log('📚 Loading built-in star catalog...');
-
-                this.brightStars = [
-                    // Major bright stars with accurate positions
-                    { ra: 101.287, dec: -16.716, magnitude: -1.46, name: "Sirius", color: "#9bb0ff", spectralType: "A1V" },
-                    { ra: 95.988, dec: -52.696, magnitude: -0.74, name: "Canopus", color: "#fff4ea", spectralType: "A9II" },
-                    { ra: 213.915, dec: 19.182, magnitude: -0.05, name: "Arcturus", color: "#ff7f00", spectralType: "K1.5III" },
-                    { ra: 219.896, dec: -60.834, magnitude: -0.27, name: "Alpha Centauri", color: "#fff4ea", spectralType: "G2V" },
-                    { ra: 279.234, dec: 38.784, magnitude: 0.03, name: "Vega", color: "#9bb0ff", spectralType: "A0V" },
-                    { ra: 79.172, dec: 45.998, magnitude: 0.08, name: "Capella", color: "#fff4ea", spectralType: "G5III" },
-                    { ra: 78.634, dec: -8.202, magnitude: 0.13, name: "Rigel", color: "#9bb0ff", spectralType: "B8Ia" },
-                    { ra: 114.825, dec: 5.225, magnitude: 0.34, name: "Procyon", color: "#fff4ea", spectralType: "F5IV" },
-                    { ra: 88.793, dec: 7.407, magnitude: 0.50, name: "Betelgeuse", color: "#ff4444", spectralType: "M2Ia" },
-                    { ra: 24.429, dec: -57.237, magnitude: 0.46, name: "Achernar", color: "#9bb0ff", spectralType: "B6Vep" },
-                    { ra: 297.696, dec: 8.868, magnitude: 0.77, name: "Altair", color: "#fff4ea", spectralType: "A7V" },
-                    { ra: 68.980, dec: 16.509, magnitude: 0.85, name: "Aldebaran", color: "#ff7f00", spectralType: "K5III" },
-                    { ra: 247.352, dec: -26.432, magnitude: 1.09, name: "Antares", color: "#ff4444", spectralType: "M1.5Iab" },
-                    { ra: 201.298, dec: -11.161, magnitude: 1.04, name: "Spica", color: "#9bb0ff", spectralType: "B1III" },
-                    { ra: 116.329, dec: 28.026, magnitude: 1.14, name: "Pollux", color: "#ff7f00", spectralType: "K0III" },
-                    { ra: 344.413, dec: -29.622, magnitude: 1.16, name: "Fomalhaut", color: "#fff4ea", spectralType: "A3V" },
-                    { ra: 310.358, dec: 45.280, magnitude: 1.25, name: "Deneb", color: "#fff4ea", spectralType: "A2Ia" },
-                    { ra: 152.093, dec: 11.967, magnitude: 1.40, name: "Regulus", color: "#9bb0ff", spectralType: "B7V" },
-                    { ra: 37.740, dec: 89.264, magnitude: 1.98, name: "Polaris", color: "#fff4ea", spectralType: "F7Ib" },
-
-                    // Big Dipper
-                    { ra: 165.460, dec: 61.751, magnitude: 1.79, name: "Dubhe", color: "#ff7f00", spectralType: "K0III" },
-                    { ra: 183.856, dec: 57.032, magnitude: 2.37, name: "Merak", color: "#fff4ea", spectralType: "A1V" },
-                    { ra: 200.981, dec: 54.925, magnitude: 2.44, name: "Phecda", color: "#fff4ea", spectralType: "A0V" },
-                    { ra: 193.507, dec: 55.960, magnitude: 1.86, name: "Alioth", color: "#fff4ea", spectralType: "A1III" },
-                    { ra: 210.042, dec: 54.061, magnitude: 2.23, name: "Mizar", color: "#fff4ea", spectralType: "A2V" },
-                    { ra: 230.182, dec: 49.313, magnitude: 1.85, name: "Alkaid", color: "#9bb0ff", spectralType: "B3V" },
-
-                    // Orion
-                    { ra: 83.002, dec: 22.514, magnitude: 1.64, name: "Bellatrix", color: "#9bb0ff", spectralType: "B2III" },
-                    { ra: 84.053, dec: -1.202, magnitude: 1.77, name: "Alnilam", color: "#9bb0ff", spectralType: "B0Ia" },
-                    { ra: 85.190, dec: -1.944, magnitude: 1.70, name: "Alnitak", color: "#9bb0ff", spectralType: "O9.5Ib" },
-                    { ra: 81.573, dec: -0.299, magnitude: 2.23, name: "Mintaka", color: "#9bb0ff", spectralType: "O9.5II" },
-                    { ra: 90.579, dec: -9.670, magnitude: 2.06, name: "Saiph", color: "#9bb0ff", spectralType: "B0.5V" }
-                ];
-
-                // Add medium brightness stars for context
-                this.stars = [];
-                for (let i = 0; i < 400; i++) {
-                    this.stars.push({
-                        ra: Math.random() * 360,
-                        dec: (Math.random() - 0.5) * 160,
-                        magnitude: 3 + Math.random() * 3,
-                        name: '',
-                        color: this.getRandomStarColor(),
-                        spectralType: 'G'
-                    });
-                }
-            }
-
-            getRandomStarColor() {
-                const colors = ['#9bb0ff', '#fff4ea', '#fff2d5', '#ff7f00', '#ff4444'];
-                const weights = [0.1, 0.3, 0.3, 0.2, 0.1];
-
-                const rand = Math.random();
-                let sum = 0;
-                for (let i = 0; i < weights.length; i++) {
-                    sum += weights[i];
-                    if (rand < sum) return colors[i];
-                }
-                return colors[colors.length - 1];
-            }
-
-            async loadDetectionData() {
-                console.log('🔍 Loading detection data...');
-
-                try {
-                    this.detections = await this.fetchPulseHunterData();
-                    console.log(`✅ Loaded ${this.detections.length} detections`);
-                } catch (error) {
-                    console.warn('⚠️ Real data unavailable, generating sample data');
-                    this.detections = this.generateSampleDetections();
-                }
-            }
-
-            async fetchPulseHunterData() {
-                const response = await fetch('reports/');
-                if (!response.ok) throw new Error('Failed to fetch reports');
-
-                const text = await response.text();
-                const files = [...text.matchAll(/href="(report_.*?\.json)"/g)].map(m => m[1]);
-
-                const allDetections = [];
-                for (const file of files.slice(0, 8)) { // Limit for homepage performance
-                    try {
-                        const reportResponse = await fetch(`reports/${file}`);
-                        if (!reportResponse.ok) continue;
-
-                        const json = await reportResponse.json();
-                        const detections = json.detections || [];
-
-                        allDetections.push(...detections.filter(det =>
-                            det.ra_deg && det.dec_deg &&
-                            !isNaN(det.ra_deg) && !isNaN(det.dec_deg) &&
-                            det.ra_deg >= 0 && det.ra_deg <= 360 &&
-                            det.dec_deg >= -90 && det.dec_deg <= 90
-                        ));
-
-                        if (allDetections.length > 500) break; // Limit for homepage
-                    } catch (error) {
-                        console.warn(`Failed to load ${file}:`, error);
-                    }
-                }
-
-                return allDetections;
-            }
-
-            generateSampleDetections() {
-                const detections = [];
-                const observerNames = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank'];
-
-                for (let i = 0; i < 80; i++) {
-                    detections.push({
-                        ra_deg: Math.random() * 360,
-                        dec_deg: (Math.random() - 0.5) * 160,
-                        confidence: Math.random(),
-                        observer: observerNames[Math.floor(Math.random() * observerNames.length)],
-                        timestamp_utc: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString(),
-                        dimming: Math.random() > 0.4,
-                        match_name: Math.random() > 0.7 ? `HD ${Math.floor(Math.random() * 200000)}` : null,
-                        exo_match: Math.random() > 0.93 ? {
-                            planet: `${['Kepler', 'TOI', 'WASP'][Math.floor(Math.random() * 3)]}-${Math.floor(Math.random() * 1000)}b`
-                        } : null
-                    });
-                }
-
-                return detections;
-            }
-
-            // Coordinate transformations
-            raDecToCanvas(ra, dec) {
-                const rect = this.canvas.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-
-                const deltaRA = (ra - this.centerRA);
-                const deltaDec = dec - this.centerDec;
-
-                const x = centerX + (deltaRA * Math.cos(dec * Math.PI / 180) * this.zoom * 1.2);
-                const y = centerY - (deltaDec * this.zoom * 2.5);
-
-                return { x, y };
-            }
-
-            canvasToRaDec(x, y) {
-                const rect = this.canvas.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-
-                const deltaX = (x - centerX) / (this.zoom * 1.2);
-                const deltaY = -(y - centerY) / (this.zoom * 2.5);
-
-                const dec = Math.max(-90, Math.min(90, this.centerDec + deltaY));
-                const ra = this.centerRA + deltaX / Math.cos(dec * Math.PI / 180);
-
-                return {
-                    ra: ((ra % 360) + 360) % 360,
-                    dec: dec
-                };
-            }
-
-            applyFilters() {
-                const confidenceFilter = parseFloat(document.getElementById('confidence-filter').value) / 100;
-                const typeFilter = document.getElementById('type-filter').value;
-
-                this.filteredDetections = this.detections.filter(det => {
-                    if ((det.confidence || 0) < confidenceFilter) return false;
-
-                    switch (typeFilter) {
-                        case 'dimming': return det.dimming;
-                        case 'brightening': return !det.dimming;
-                        case 'exoplanet': return det.exo_match;
-                        default: return true;
-                    }
-                });
-
+                await this.loadData();
                 this.updateStatistics();
-                this.render();
             }
 
-            render() {
-                const rect = this.canvas.getBoundingClientRect();
-                this.ctx.clearRect(0, 0, rect.width, rect.height);
+            async loadData() {
+                try {
+                    // Try to load from reports
+                    const response = await fetch('reports/');
+                    if (response.ok) {
+                        const html = await response.text();
+                        const files = [...html.matchAll(/href="(report_.*?\.json)"/g)].map(m => m[1]);
 
-                this.drawGrid();
-                this.drawStars();
-                this.drawDetections();
-                this.updateZoomIndicator();
-            }
-
-            drawGrid() {
-                const rect = this.canvas.getBoundingClientRect();
-                const gridSpacing = Math.max(10, this.gridSpacing / this.zoom);
-
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-                this.ctx.lineWidth = 0.5;
-
-                // RA lines
-                for (let ra = 0; ra <= 360; ra += gridSpacing) {
-                    const pos = this.raDecToCanvas(ra, 0);
-                    if (pos.x >= -50 && pos.x <= rect.width + 50) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(pos.x, 0);
-                        this.ctx.lineTo(pos.x, rect.height);
-                        this.ctx.stroke();
+                        for (const file of files.slice(0, 5)) {
+                            try {
+                                const reportResponse = await fetch(`reports/${file}`);
+                                if (reportResponse.ok) {
+                                    const json = await reportResponse.json();
+                                    if (json.detections) {
+                                        this.detections.push(...json.detections);
+                                    }
+                                }
+                            } catch (error) {
+                                console.warn(`Failed to load ${file}`);
+                            }
+                        }
                     }
-                }
-
-                // Dec lines
-                for (let dec = -90; dec <= 90; dec += gridSpacing) {
-                    const pos = this.raDecToCanvas(0, dec);
-                    if (pos.y >= -50 && pos.y <= rect.height + 50) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(0, pos.y);
-                        this.ctx.lineTo(rect.width, pos.y);
-                        this.ctx.stroke();
-                    }
+                } catch (error) {
+                    console.warn('Failed to load detection data for statistics');
+                    // Generate sample data for demo
+                    this.detections = this.generateSampleData();
                 }
             }
 
-            drawStars() {
-                // Background stars
-                this.ctx.globalAlpha = 0.5;
-                this.stars.forEach(star => {
-                    if (star.magnitude <= 6) this.drawStar(star, false);
-                });
-
-                // Bright stars
-                this.ctx.globalAlpha = 1.0;
-                this.brightStars.forEach(star => {
-                    this.drawStar(star, true);
-                });
-            }
-
-            drawStar(star, showName) {
-                const pos = this.raDecToCanvas(star.ra, star.dec);
-                const rect = this.canvas.getBoundingClientRect();
-
-                if (pos.x < -50 || pos.x > rect.width + 50 ||
-                    pos.y < -50 || pos.y > rect.height + 50) return;
-
-                const baseSize = Math.max(0.3, 4 - star.magnitude);
-                let size = baseSize * Math.min(1.5, Math.sqrt(this.zoom * 0.8));
-
-                if (size < 0.5) return;
-
-                if (star === this.hoveredObject) size *= 1.3;
-
-                this.ctx.fillStyle = star.color;
-                this.ctx.beginPath();
-                this.ctx.arc(pos.x, pos.y, size, 0, 2 * Math.PI);
-                this.ctx.fill();
-
-                if (showName && star.name && this.zoom > 2 && star.magnitude < 2) {
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    this.ctx.font = `${Math.min(12, 8 * this.zoom)}px Inter`;
-                    this.ctx.fillText(star.name, pos.x + size + 3, pos.y - 1);
-                }
-            }
-
-            drawDetections() {
-                this.filteredDetections.forEach(detection => {
-                    const pos = this.raDecToCanvas(detection.ra_deg, detection.dec_deg);
-                    const rect = this.canvas.getBoundingClientRect();
-
-                    if (pos.x < -20 || pos.x > rect.width + 20 ||
-                        pos.y < -20 || pos.y > rect.height + 20) return;
-
-                    let radius = this.detectionRadius;
-                    let color = this.getDetectionColor(detection);
-
-                    if (detection === this.hoveredObject) {
-                        radius *= 1.4;
-                        this.ctx.strokeStyle = '#ffffff';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.beginPath();
-                        this.ctx.arc(pos.x, pos.y, radius + 2, 0, 2 * Math.PI);
-                        this.ctx.stroke();
-                    }
-
-                    this.ctx.fillStyle = color;
-                    this.ctx.beginPath();
-                    this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
-                    this.ctx.fill();
-
-                    if (detection.exo_match) {
-                        this.ctx.strokeStyle = '#8a2be2';
-                        this.ctx.lineWidth = 1;
-                        this.ctx.beginPath();
-                        this.ctx.arc(pos.x, pos.y, radius + 3, 0, 2 * Math.PI);
-                        this.ctx.stroke();
-                    }
-                });
-            }
-
-            getDetectionColor(detection) {
-                if (detection.exo_match) return '#8a2be2';
-
-                const confidence = detection.confidence || 0;
-                if (confidence >= 0.8) return '#00c851';
-                if (confidence >= 0.5) return '#ffbb33';
-                return '#ff4444';
-            }
-
-            findObjectAtPoint(x, y) {
-                const threshold = 12;
-
-                for (const detection of this.filteredDetections) {
-                    const pos = this.raDecToCanvas(detection.ra_deg, detection.dec_deg);
-                    const distance = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-
-                    if (distance <= threshold) {
-                        return { type: 'detection', data: detection };
-                    }
-                }
-
-                for (const star of this.brightStars) {
-                    const pos = this.raDecToCanvas(star.ra, star.dec);
-                    const distance = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-
-                    if (distance <= threshold) {
-                        return { type: 'star', data: star };
-                    }
-                }
-
-                return null;
-            }
-
-            // Event handlers
-            onMouseDown(e) {
-                this.isDragging = true;
-                this.lastMouseX = e.clientX;
-                this.lastMouseY = e.clientY;
-                this.canvas.style.cursor = 'grabbing';
-            }
-
-            onMouseMove(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                const coords = this.canvasToRaDec(x, y);
-                const raStr = coords.ra.toFixed(3).padStart(7, '0');
-                const decStr = (coords.dec >= 0 ? '+' : '') + coords.dec.toFixed(3).padStart(6, '0');
-                document.getElementById('coords-display').innerHTML =
-                    `RA: ${raStr}°<br>DEC: ${decStr}°`;
-
-                if (this.isDragging) {
-                    const deltaX = e.clientX - this.lastMouseX;
-                    const deltaY = e.clientY - this.lastMouseY;
-
-                    this.centerRA -= deltaX / (this.zoom * 1.2);
-                    this.centerDec += deltaY / (this.zoom * 2.5);
-
-                    this.centerRA = ((this.centerRA % 360) + 360) % 360;
-                    this.centerDec = Math.max(-90, Math.min(90, this.centerDec));
-
-                    this.lastMouseX = e.clientX;
-                    this.lastMouseY = e.clientY;
-
-                    this.render();
-                } else {
-                    const objectResult = this.findObjectAtPoint(x, y);
-                    const newHovered = objectResult ? objectResult.data : null;
-
-                    if (newHovered !== this.hoveredObject) {
-                        this.hoveredObject = newHovered;
-                        this.canvas.style.cursor = newHovered ? 'pointer' : 'grab';
-                        this.render();
-                    }
-                }
-            }
-
-            onMouseUp(e) {
-                this.isDragging = false;
-                this.canvas.style.cursor = this.hoveredObject ? 'pointer' : 'grab';
-            }
-
-            onWheel(e) {
-                e.preventDefault();
-
-                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-                const newZoom = this.zoom * zoomFactor;
-
-                if (newZoom >= this.minZoom && newZoom <= this.maxZoom) {
-                    this.zoom = newZoom;
-                    this.render();
-                }
-            }
-
-            onClick(e) {
-                if (this.isDragging) return;
-
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                const objectResult = this.findObjectAtPoint(x, y);
-                if (objectResult) {
-                    if (objectResult.type === 'detection') {
-                        this.showDetectionPopup(objectResult.data, e.clientX, e.clientY);
-                    } else if (objectResult.type === 'star') {
-                        this.showStarPopup(objectResult.data, e.clientX, e.clientY);
-                    }
-                } else {
-                    this.hidePopups();
-                }
-            }
-
-            // Touch events
-            onTouchStart(e) {
-                if (e.touches.length === 1) {
-                    this.onMouseDown({
-                        clientX: e.touches[0].clientX,
-                        clientY: e.touches[0].clientY
+            generateSampleData() {
+                const sample = [];
+                for (let i = 0; i < 150; i++) {
+                    sample.push({
+                        observer: ['Alice', 'Bob', 'Carol', 'Dave'][Math.floor(Math.random() * 4)],
+                        confidence: Math.random(),
+                        exo_match: Math.random() > 0.9 ? { planet: 'Sample-' + i } : null
                     });
                 }
-            }
-
-            onTouchMove(e) {
-                if (e.touches.length === 1) {
-                    this.onMouseMove({
-                        clientX: e.touches[0].clientX,
-                        clientY: e.touches[0].clientY
-                    });
-                }
-                e.preventDefault();
-            }
-
-            onTouchEnd(e) {
-                this.onMouseUp(e);
-            }
-
-            showDetectionPopup(detection, x, y) {
-                this.hidePopups();
-
-                const popup = document.createElement('div');
-                popup.className = 'object-popup';
-                popup.id = 'object-popup';
-
-                const confidence = ((detection.confidence || 0) * 100).toFixed(1);
-                const date = detection.timestamp_utc ?
-                    new Date(detection.timestamp_utc).toLocaleDateString() : 'Unknown';
-
-                popup.innerHTML = `
-                    <div class="popup-title">🔍 Detection</div>
-                    <div class="popup-detail"><strong>Observer:</strong> ${detection.observer || 'Unknown'}</div>
-                    <div class="popup-detail"><strong>RA:</strong> ${detection.ra_deg.toFixed(4)}°</div>
-                    <div class="popup-detail"><strong>Dec:</strong> ${detection.dec_deg.toFixed(4)}°</div>
-                    <div class="popup-detail"><strong>Confidence:</strong> ${confidence}%</div>
-                    <div class="popup-detail"><strong>Date:</strong> ${date}</div>
-                    <div class="popup-detail"><strong>Type:</strong> ${detection.dimming ? 'Dimming' : 'Brightening'}</div>
-                    ${detection.exo_match ? `<div class="popup-detail"><strong>🪐 Exoplanet:</strong> ${detection.exo_match.planet}</div>` : ''}
-                    ${detection.match_name ? `<div class="popup-detail"><strong>Match:</strong> ${detection.match_name}</div>` : ''}
-                `;
-
-                popup.style.left = Math.min(x + 10, window.innerWidth - 280) + 'px';
-                popup.style.top = Math.max(10, y - 10) + 'px';
-
-                document.body.appendChild(popup);
-                setTimeout(() => this.hidePopups(), 6000);
-            }
-
-            showStarPopup(star, x, y) {
-                this.hidePopups();
-
-                const popup = document.createElement('div');
-                popup.className = 'object-popup';
-                popup.id = 'object-popup';
-
-                popup.innerHTML = `
-                    <div class="popup-title">⭐ ${star.name || 'Star'}</div>
-                    <div class="popup-detail"><strong>RA:</strong> ${star.ra.toFixed(4)}°</div>
-                    <div class="popup-detail"><strong>Dec:</strong> ${star.dec.toFixed(4)}°</div>
-                    <div class="popup-detail"><strong>Magnitude:</strong> ${star.magnitude.toFixed(2)}</div>
-                    <div class="popup-detail"><strong>Spectral Type:</strong> ${star.spectralType || 'Unknown'}</div>
-                `;
-
-                popup.style.left = Math.min(x + 10, window.innerWidth - 280) + 'px';
-                popup.style.top = Math.max(10, y - 10) + 'px';
-
-                document.body.appendChild(popup);
-                setTimeout(() => this.hidePopups(), 4000);
-            }
-
-            hidePopups() {
-                const popup = document.getElementById('object-popup');
-                if (popup) popup.remove();
-            }
-
-            // Public methods for UI controls
-            zoomIn() {
-                if (this.zoom < this.maxZoom) {
-                    this.zoom *= 1.4;
-                    this.render();
-                }
-            }
-
-            zoomOut() {
-                if (this.zoom > this.minZoom) {
-                    this.zoom /= 1.4;
-                    this.render();
-                }
-            }
-
-            resetView() {
-                this.centerRA = 180;
-                this.centerDec = 0;
-                this.zoom = 1.0;
-                this.render();
+                return sample;
             }
 
             updateStatistics() {
                 const totalDetections = this.detections.length;
-                const observers = new Set(this.detections.map(d => d.observer)).size;
+                const uniqueObservers = new Set(this.detections.map(d => d.observer || 'Unknown')).size;
                 const exoplanetCandidates = this.detections.filter(d => d.exo_match).length;
                 const highConfidence = this.detections.filter(d => (d.confidence || 0) >= 0.8).length;
 
                 this.animateCounter('total-detections', totalDetections);
-                this.animateCounter('active-observers', observers);
+                this.animateCounter('active-observers', uniqueObservers);
                 this.animateCounter('exoplanet-candidates', exoplanetCandidates);
                 this.animateCounter('high-confidence', highConfidence);
-
-                this.populateTable();
-            }
-
-            populateTable() {
-                const tbody = document.querySelector('#detectionTable tbody');
-                if (!tbody) return;
-
-                tbody.innerHTML = '';
-
-                const sortedDetections = [...this.detections].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-
-                sortedDetections.slice(0, 20).forEach(detection => {
-                    const row = document.createElement('tr');
-                    const confidence = (detection.confidence || 0) * 100;
-                    const coords = detection.ra_deg && detection.dec_deg ?
-                        `${detection.ra_deg.toFixed(4)}°, ${detection.dec_deg.toFixed(4)}°` : 'N/A';
-
-                    row.innerHTML = `
-                        <td>${detection.observer || 'Unknown'}</td>
-                        <td>${coords}</td>
-                        <td>${detection.timestamp_utc ? new Date(detection.timestamp_utc).toLocaleDateString() : 'N/A'}</td>
-                        <td><span style="color: ${this.getConfidenceColor(confidence)}">${confidence.toFixed(0)}%</span></td>
-                        <td>${detection.dimming ? '🌑 Dimming' : '✨ Brightening'}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            ${detection.match_name || '—'}
-                        </td>
-                    `;
-
-                    tbody.appendChild(row);
-                });
-            }
-
-            getConfidenceColor(confidence) {
-                if (confidence >= 80) return '#00c851';
-                if (confidence >= 50) return '#ffbb33';
-                return '#ff4444';
             }
 
             animateCounter(id, target) {
                 const element = document.getElementById(id);
+                if (!element) return;
+
                 let current = 0;
-                const increment = Math.ceil(target / 30);
+                const increment = Math.max(1, Math.ceil(target / 30));
                 const timer = setInterval(() => {
                     current += increment;
                     if (current >= target) {
@@ -1579,36 +740,11 @@
                     element.textContent = current.toLocaleString();
                 }, 50);
             }
-
-            updateZoomIndicator() {
-                const fov = (180 / this.zoom).toFixed(1);
-                document.getElementById('zoom-indicator').textContent =
-                    `Zoom: ${this.zoom.toFixed(1)}x • FOV: ${fov}°`;
-            }
-
-            hideLoading() {
-                document.getElementById('skymap-loading').style.display = 'none';
-            }
-
-            showError(message) {
-                const container = document.querySelector('.sky-map-container');
-                const errorDiv = document.createElement('div');
-                errorDiv.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: var(--error);">
-                        <h3>⚠️ Error Loading Sky Map</h3>
-                        <p>${message}</p>
-                        <button class="btn btn-primary" onclick="location.reload()">Retry</button>
-                    </div>
-                `;
-                container.appendChild(errorDiv);
-                this.hideLoading();
-            }
         }
 
         // Initialize when page loads
-        let skyMap;
         document.addEventListener('DOMContentLoaded', () => {
-            skyMap = new HomepageSkyMap();
+            new StatisticsUpdater();
         });
 
         // Smooth scrolling for navigation links
@@ -1635,30 +771,11 @@
             }
         });
 
-        // Add intersection observer for animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, observerOptions);
-
-        // Observe elements for animation
-        document.addEventListener('DOMContentLoaded', () => {
-            const animatedElements = document.querySelectorAll('.stat-item, .feature-card');
-            animatedElements.forEach(el => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(30px)';
-                el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                observer.observe(el);
-            });
+        // Listen for messages from starmap iframe
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'starmap-loaded') {
+                console.log('Starmap loaded successfully');
+            }
         });
     </script>
 </body>
