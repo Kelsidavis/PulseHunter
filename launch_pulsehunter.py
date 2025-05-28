@@ -82,7 +82,7 @@ def check_files():
 
     required_files = [
         "pulse_gui.py",
-        "calibration_dialog.py",
+        "fixed_calibration_dialog.py",
         "calibration_utilities.py",
     ]
 
