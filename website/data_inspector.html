@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseHunter Data Structure Inspector</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+        }
+        .section {
+            background: #111;
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .btn:hover {
+            background: #0080ff;
+        }
+        .json-view {
+            background: #000;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        .analysis {
+            background: #001100;
+            border: 1px solid #004400;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error { color: #ff4444; }
+        .success { color: #00ff00; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Data Structure Inspector</h1>
+
+        <div class="section">
+            <h3>Load and Inspect Your Data</h3>
+            <button class="btn" id="inspect-btn">🔍 Inspect reports.json Structure</button>
+            <div id="status" style="margin: 10px 0;">Ready to inspect...</div>
+        </div>
+
+        <div class="section">
+            <h3>Raw Data Analysis</h3>
+            <div class="analysis" id="analysis">Click "Inspect" to analyze your data structure...</div>
+        </div>
+
+        <div class="section">
+            <h3>Sample Detection (First Item)</h3>
+            <div class="json-view" id="sample-detection">No data loaded yet...</div>
+        </div>
+
+        <div class="section">
+            <h3>Field Analysis</h3>
+            <div class="json-view" id="field-analysis">No data loaded yet...</div>
+        </div>
+
+        <div class="section">
+            <h3>Fixed Validation Function</h3>
+            <div class="json-view" id="fixed-validation">Waiting for data analysis...</div>
+        </div>
+    </div>
+
+    <script>
+        async function inspectData() {
+            const statusEl = document.getElementById('status');
+            const analysisEl = document.getElementById('analysis');
+            const sampleEl = document.getElementById('sample-detection');
+            const fieldEl = document.getElementById('field-analysis');
+            const fixedEl = document.getElementById('fixed-validation');
+
+            try {
+                statusEl.innerHTML = '<span class="info">Loading reports.json...</span>';
+
+                const response = await fetch('reports/reports.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                statusEl.innerHTML = '<span class="success">✅ Data loaded successfully!</span>';
+
+                // Basic analysis
+                let detections = [];
+                if (Array.isArray(data)) {
+                    detections = data;
+                    analysisEl.innerHTML = `
+                        <span class="success">✅ Data is a direct array</span><br>
+                        <span class="info">📊 Contains ${detections.length} items</span><br>
+                        <span class="info">🔍 Analyzing first item structure...</span>
+                    `;
+                } else if (data.detections && Array.isArray(data.detections)) {
+                    detections = data.detections;
+                    analysisEl.innerHTML = `
+                        <span class="success">✅ Data has 'detections' property</span><br>
+                        <span class="info">📊 Contains ${detections.length} detections</span><br>
+                        <span class="info">🔍 Analyzing detection structure...</span>
+                    `;
+                } else {
+                    analysisEl.innerHTML = `
+                        <span class="error">❌ Unexpected data structure</span><br>
+                        <span class="warning">📋 Root keys: ${Object.keys(data).join(', ')}</span>
+                    `;
+                    sampleEl.textContent = JSON.stringify(data, null, 2);
+                    return;
+                }
+
+                if (detections.length === 0) {
+                    analysisEl.innerHTML += '<br><span class="error">❌ No detections found!</span>';
+                    return;
+                }
+
+                // Show first detection
+                const firstDetection = detections[0];
+                sampleEl.textContent = JSON.stringify(firstDetection, null, 2);
+
+                // Analyze fields
+                const allFields = new Set();
+                const fieldTypes = {};
+                const fieldSamples = {};
+
+                // Analyze first 10 detections to understand structure
+                detections.slice(0, 10).forEach(detection => {
+                    if (detection && typeof detection === 'object') {
+                        Object.keys(detection).forEach(key => {
+                            allFields.add(key);
+                            if (!fieldTypes[key]) {
+                                fieldTypes[key] = new Set();
+                                fieldSamples[key] = [];
+                            }
+                            fieldTypes[key].add(typeof detection[key]);
+                            if (fieldSamples[key].length < 3) {
+                                fieldSamples[key].push(detection[key]);
+                            }
+                        });
+                    }
+                });
+
+                // Field analysis report
+                let fieldReport = `📋 Found ${allFields.size} unique fields:\n\n`;
+
+                const fieldsArray = Array.from(allFields).sort();
+                fieldsArray.forEach(field => {
+                    const types = Array.from(fieldTypes[field]).join(', ');
+                    const samples = fieldSamples[field].map(s =>
+                        typeof s === 'string' ? `"${s}"` : String(s)
+                    ).join(', ');
+
+                    fieldReport += `🔸 ${field}:\n`;
+                    fieldReport += `   Type(s): ${types}\n`;
+                    fieldReport += `   Samples: ${samples}\n\n`;
+                });
+
+                fieldEl.textContent = fieldReport;
+
+                // Check for coordinate fields
+                const coordFields = fieldsArray.filter(f =>
+                    f.toLowerCase().includes('ra') ||
+                    f.toLowerCase().includes('dec') ||
+                    f.toLowerCase().includes('coord') ||
+                    f.toLowerCase().includes('longitude') ||
+                    f.toLowerCase().includes('latitude')
+                );
+
+                let fixedValidation = '// Based on your data structure:\n\n';
+
+                if (coordFields.length > 0) {
+                    fixedValidation += `// Coordinate fields found: ${coordFields.join(', ')}\n\n`;
+
+                    // Try to identify RA and Dec fields
+                    const raField = coordFields.find(f => f.toLowerCase().includes('ra')) || coordFields[0];
+                    const decField = coordFields.find(f => f.toLowerCase().includes('dec')) || coordFields[1];
+
+                    fixedValidation += `function validateDetection(detection) {
+    if (!detection || typeof detection !== 'object') {
+        return false;
+    }
+
+    // Check for coordinate fields in your data
+    const ra = detection['${raField}'];
+    const dec = detection['${decField}'];
+
+    if (typeof ra !== 'number' || typeof dec !== 'number') {
+        return false;
+    }
+
+    if (isNaN(ra) || isNaN(dec)) {
+        return false;
+    }
+
+    // Adjust ranges based on your data
+    if (ra < 0 || ra > 360) {
+        return false;
+    }
+
+    if (dec < -90 || dec > 90) {
+        return false;
+    }
+
+    return true;
+}`;
+
+                    // Test validation on sample data
+                    const sampleValidation = detections.slice(0, 5).map(det => {
+                        const ra = det[raField];
+                        const dec = det[decField];
+                        const isValid = (
+                            typeof ra === 'number' &&
+                            typeof dec === 'number' &&
+                            !isNaN(ra) && !isNaN(dec) &&
+                            ra >= 0 && ra <= 360 &&
+                            dec >= -90 && dec <= 90
+                        );
+                        return {
+                            ra: ra,
+                            dec: dec,
+                            raType: typeof ra,
+                            decType: typeof dec,
+                            valid: isValid
+                        };
+                    });
+
+                    fixedValidation += '\n\n// Testing on your sample data:\n';
+                    sampleValidation.forEach((test, i) => {
+                        fixedValidation += `// Detection ${i+1}: RA=${test.ra} (${test.raType}), DEC=${test.dec} (${test.decType}) -> ${test.valid ? 'VALID' : 'INVALID'}\n`;
+                    });
+
+                } else {
+                    fixedValidation += '// ❌ No obvious coordinate fields found!\n';
+                    fixedValidation += '// Available fields: ' + fieldsArray.join(', ') + '\n\n';
+                    fixedValidation += '// Please check which fields contain RA/Dec coordinates';
+                }
+
+                fixedEl.textContent = fixedValidation;
+
+            } catch (error) {
+                statusEl.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                analysisEl.innerHTML = `<span class="error">Failed to load or parse data: ${error.message}</span>`;
+            }
+        }
+
+        // Setup
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('inspect-btn').addEventListener('click', inspectData);
+        });
+    </script>
+</body>
+</html>

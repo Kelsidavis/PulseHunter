@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple PulseHunter Debug Tool</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+        }
+        .section {
+            background: #111;
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .btn:hover {
+            background: #0080ff;
+        }
+        .log {
+            background: #000;
+            border: 1px solid #333;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        .error { color: #ff4444; }
+        .success { color: #00ff00; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        input {
+            background: #111;
+            border: 1px solid #333;
+            color: #00ff00;
+            padding: 5px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Simple PulseHunter Debug Tool</h1>
+
+        <div class="section">
+            <h3>Quick Tests</h3>
+            <button class="btn" id="test1">1. Test Reports Folder</button>
+            <button class="btn" id="test2">2. List All Files</button>
+            <button class="btn" id="test3">3. Test Sample File</button>
+            <button class="btn" id="clear">Clear Log</button>
+        </div>
+
+        <div class="section">
+            <h3>Manual File Test</h3>
+            <input type="text" id="filename" placeholder="Enter filename (e.g., report_20241201_123456.json)">
+            <button class="btn" id="test-file">Test This File</button>
+        </div>
+
+        <div class="section">
+            <h3>Debug Log</h3>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simple logging function
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            const line = `[${timestamp}] ${message}\n`;
+
+            const span = document.createElement('span');
+            span.className = className;
+            span.textContent = line;
+
+            logEl.appendChild(span);
+            logEl.scrollTop = logEl.scrollHeight;
+
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // Test 1: Basic reports folder access
+        async function testReportsFolder() {
+            log('Testing reports folder access...', 'info');
+
+            try {
+                const response = await fetch('reports/');
+                log(`HTTP Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+
+                if (response.ok) {
+                    const content = await response.text();
+                    log(`Content length: ${content.length} characters`, 'info');
+
+                    if (content.length > 0) {
+                        log('Reports folder is accessible!', 'success');
+                        return content;
+                    } else {
+                        log('Reports folder is empty', 'warning');
+                    }
+                } else {
+                    log('Cannot access reports folder', 'error');
+                    log('Possible causes:', 'error');
+                    log('- Folder does not exist', 'error');
+                    log('- Server does not allow directory listing', 'error');
+                    log('- Running from file:// (use local server)', 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+                log('This usually means CORS or network issues', 'error');
+            }
+
+            return null;
+        }
+
+        // Test 2: List all files in reports folder
+        async function listAllFiles() {
+            log('Listing all files in reports folder...', 'info');
+
+            const content = await testReportsFolder();
+            if (!content) return;
+
+            // Find all JSON files
+            const jsonFiles = [...content.matchAll(/href="([^"]*\.json)"/g)];
+            log(`Found ${jsonFiles.length} JSON files:`, 'info');
+
+            jsonFiles.forEach(match => {
+                log(`  - ${match[1]}`, 'info');
+            });
+
+            // Find report files specifically
+            const reportFiles = [...content.matchAll(/href="(report_.*?\.json)"/g)];
+            log(`Found ${reportFiles.length} report files:`, reportFiles.length > 0 ? 'success' : 'warning');
+
+            reportFiles.forEach(match => {
+                log(`  - ${match[1]}`, 'success');
+            });
+
+            if (reportFiles.length === 0) {
+                log('No files matching "report_*.json" pattern found', 'warning');
+                log('Your files might have different names', 'warning');
+            }
+        }
+
+        // Test 3: Test a sample file
+        async function testSampleFile() {
+            log('Testing sample files...', 'info');
+
+            // Try common filenames
+            const sampleNames = [
+                'reports.json',
+                'report_20241201_120000.json',
+                'report_20241130_120000.json',
+                'report_20241129_120000.json'
+            ];
+
+            for (const filename of sampleNames) {
+                log(`Trying ${filename}...`, 'info');
+
+                try {
+                    const response = await fetch(`reports/${filename}`);
+
+                    if (response.ok) {
+                        log(`✅ Found ${filename}!`, 'success');
+                        const content = await response.text();
+                        log(`File size: ${content.length} characters`, 'info');
+
+                        try {
+                            const data = JSON.parse(content);
+                            log(`Valid JSON structure`, 'success');
+
+                            if (Array.isArray(data)) {
+                                log(`File contains array with ${data.length} items`, 'info');
+                            } else if (data.detections && Array.isArray(data.detections)) {
+                                log(`File contains ${data.detections.length} detections`, 'success');
+
+                                // Show sample detection
+                                if (data.detections.length > 0) {
+                                    const sample = data.detections[0];
+                                    log('Sample detection:', 'info');
+                                    log(JSON.stringify(sample, null, 2), 'info');
+                                }
+                            } else {
+                                log(`Unknown JSON structure: ${Object.keys(data)}`, 'warning');
+                            }
+
+                        } catch (parseError) {
+                            log(`JSON parsing error: ${parseError.message}`, 'error');
+                            log(`First 200 chars: ${content.substring(0, 200)}`, 'info');
+                        }
+
+                        return; // Found a working file, stop testing
+
+                    } else {
+                        log(`${filename} not found (${response.status})`, 'warning');
+                    }
+
+                } catch (error) {
+                    log(`Error testing ${filename}: ${error.message}`, 'error');
+                }
+            }
+
+            log('No sample files found', 'error');
+        }
+
+        // Test specific file
+        async function testSpecificFile() {
+            const filename = document.getElementById('filename').value.trim();
+
+            if (!filename) {
+                log('Please enter a filename', 'warning');
+                return;
+            }
+
+            log(`Testing specific file: ${filename}`, 'info');
+
+            try {
+                const response = await fetch(`reports/${filename}`);
+                log(`HTTP Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+
+                if (response.ok) {
+                    const content = await response.text();
+                    log(`File size: ${content.length} characters`, 'info');
+
+                    try {
+                        const data = JSON.parse(content);
+                        log('Valid JSON!', 'success');
+
+                        // Analyze structure
+                        if (Array.isArray(data)) {
+                            log(`Array with ${data.length} items`, 'info');
+                        } else {
+                            log(`Object with keys: ${Object.keys(data).join(', ')}`, 'info');
+
+                            if (data.detections) {
+                                log(`Contains ${data.detections.length} detections`, 'success');
+                            }
+                        }
+
+                        // Show first few lines
+                        const preview = JSON.stringify(data, null, 2).split('\n').slice(0, 20).join('\n');
+                        log('File preview:', 'info');
+                        log(preview + '\n...', 'info');
+
+                    } catch (parseError) {
+                        log(`JSON parsing failed: ${parseError.message}`, 'error');
+                        log('Raw content preview:', 'error');
+                        log(content.substring(0, 500), 'error');
+                    }
+
+                } else {
+                    log(`File not found or not accessible`, 'error');
+                }
+
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        // Clear log
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Setup event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Debug tool loaded successfully!', 'success');
+            log('Environment info:', 'info');
+            log(`Protocol: ${window.location.protocol}`, 'info');
+            log(`Host: ${window.location.host}`, 'info');
+            log(`Path: ${window.location.pathname}`, 'info');
+
+            if (window.location.protocol === 'file:') {
+                log('WARNING: You are using file:// protocol', 'warning');
+                log('This may cause CORS issues. Try using a local server instead.', 'warning');
+                log('Example: python -m http.server 8000', 'info');
+            }
+
+            log('Click the buttons above to start testing!', 'info');
+
+            // Add event listeners
+            document.getElementById('test1').addEventListener('click', testReportsFolder);
+            document.getElementById('test2').addEventListener('click', listAllFiles);
+            document.getElementById('test3').addEventListener('click', testSampleFile);
+            document.getElementById('test-file').addEventListener('click', testSpecificFile);
+            document.getElementById('clear').addEventListener('click', clearLog);
+        });
+
+        // Also make functions available globally for debugging
+        window.testReportsFolder = testReportsFolder;
+        window.listAllFiles = listAllFiles;
+        window.testSampleFile = testSampleFile;
+        window.testSpecificFile = testSpecificFile;
+    </script>
+</body>
+</html>

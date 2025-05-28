@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fixed Data Loader - Your Pixel Coordinates</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #0080ff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .log {
+            background: #000;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .success { color: #00c851; }
+        .error { color: #ff4444; }
+        .warning { color: #ffbb33; }
+        .info { color: #00d4ff; }
+        .sample {
+            background: #000;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fixed Data Loader Test</h1>
+
+        <div class="section">
+            <h3>Load Your Pixel Coordinate Data</h3>
+            <p>This version handles your data structure with pixel coordinates (x, y) and null RA/Dec values.</p>
+            <button class="btn" id="load-data">📊 Load Your Data (Fixed)</button>
+            <button class="btn" id="show-sample">👁️ Show Sample with Generated Coordinates</button>
+            <div id="status">Ready to test fixed loader...</div>
+        </div>
+
+        <div class="section">
+            <h3>Results</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-loaded">-</div>
+                    <div class="stat-label">Raw Detections Loaded</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="valid-detections">-</div>
+                    <div class="stat-label">Valid After Processing</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="generated-coords">-</div>
+                    <div class="stat-label">Generated Coordinates</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="dimming-events">-</div>
+                    <div class="stat-label">Dimming Events</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="brightening-events">-</div>
+                    <div class="stat-label">Brightening Events</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="high-confidence">-</div>
+                    <div class="stat-label">High Confidence</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Processing Log</h3>
+            <div class="log" id="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>Sample Detection (After Processing)</h3>
+            <div class="sample" id="sample">Load data first...</div>
+        </div>
+
+        <div class="section">
+            <h3>✅ Success! What This Means:</h3>
+            <div style="color: #00c851;">
+                <p><strong>Your data works now!</strong> Here's what the fix does:</p>
+                <ul>
+                    <li>✅ <strong>Accepts pixel coordinates:</strong> Uses your x,y values instead of requiring RA/Dec</li>
+                    <li>✅ <strong>Generates sky coordinates:</strong> Converts pixels to approximate RA/Dec for visualization</li>
+                    <li>✅ <strong>Preserves your data:</strong> Keeps all original fields (confidence, dimming, etc.)</li>
+                    <li>✅ <strong>Ready for visualization:</strong> Can now be plotted on star maps!</li>
+                </ul>
+
+                <h4>Next Steps:</h4>
+                <ol>
+                    <li>Save the "Fixed Data Loader" as <code>pulse-hunter-data-loader.js</code></li>
+                    <li>Replace the data loader in your pages</li>
+                    <li>Your site will now show all 215 detections!</li>
+                </ol>
+
+                <p><strong>Note:</strong> The generated RA/Dec coordinates are approximate for visualization. For precise astrometry, you'd need proper WCS (World Coordinate System) transformation using your FITS file headers.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Include the fixed data loader
+        class PulseHunterDataLoader {
+            constructor(options = {}) {
+                this.options = {
+                    reportsPath: 'reports/',
+                    generateCoordinates: options.generateCoordinates !== false,
+                    debug: options.debug || false,
+                    ...options
+                };
+
+                this.data = {
+                    detections: [],
+                    files: [],
+                    statistics: {
+                        totalFiles: 0,
+                        loadedFiles: 0,
+                        totalDetections: 0,
+                        validDetections: 0,
+                        exoplanetCandidates: 0,
+                        uniqueObservers: 0,
+                        highConfidence: 0,
+                        dimmingEvents: 0,
+                        brighteningEvents: 0,
+                        generatedCoordinates: 0
+                    }
+                };
+
+                this.listeners = {};
+            }
+
+            on(event, callback) {
+                if (!this.listeners[event]) {
+                    this.listeners[event] = [];
+                }
+                this.listeners[event].push(callback);
+            }
+
+            emit(event, data) {
+                if (this.listeners[event]) {
+                    this.listeners[event].forEach(callback => callback(data));
+                }
+            }
+
+            log(message, type = 'info') {
+                if (this.options.debug) {
+                    console.log(`[PulseHunter] ${message}`);
+                }
+                this.emit('log', { message, type, timestamp: new Date() });
+            }
+
+            async loadAllData() {
+                try {
+                    this.log('Starting data loading with fixed validation...', 'info');
+
+                    const response = await fetch(`${this.options.reportsPath}reports.json`);
+                    if (!response.ok) {
+                        throw new Error(`reports.json not found: ${response.status}`);
+                    }
+
+                    const rawData = await response.json();
+                    const detections = Array.isArray(rawData) ? rawData : rawData.detections;
+
+                    this.log(`Loaded ${detections.length} raw detections`, 'success');
+                    this.data.detections = detections;
+
+                    this.processDetections();
+                    this.calculateStatistics();
+
+                    this.log(`Processing complete: ${this.data.statistics.validDetections} valid detections`, 'success');
+                    this.emit('loadComplete', this.data);
+
+                    return this.data;
+
+                } catch (error) {
+                    this.log(`Loading failed: ${error.message}`, 'error');
+                    this.emit('loadError', error);
+                    throw error;
+                }
+            }
+
+            validateDetection(detection) {
+                if (!detection || typeof detection !== 'object') {
+                    return false;
+                }
+
+                // Accept detections with valid pixel coordinates
+                const hasPixelCoords = (
+                    typeof detection.x === 'number' &&
+                    typeof detection.y === 'number' &&
+                    !isNaN(detection.x) &&
+                    !isNaN(detection.y) &&
+                    detection.x > 0 && detection.y > 0
+                );
+
+                // Or valid world coordinates
+                const hasWorldCoords = (
+                    typeof detection.ra_deg === 'number' &&
+                    typeof detection.dec_deg === 'number' &&
+                    !isNaN(detection.ra_deg) &&
+                    !isNaN(detection.dec_deg)
+                );
+
+                return hasPixelCoords || hasWorldCoords;
+            }
+
+            pixelToSkyCoordinates(x, y, imageWidth = 6000, imageHeight = 4000) {
+                // Simple mapping for visualization - not astronomically precise
+                const ra = (x / imageWidth) * 360;
+                const dec = ((y / imageHeight) - 0.5) * 120; // -60 to +60 degrees
+
+                return {
+                    ra_deg: Math.max(0, Math.min(360, ra)),
+                    dec_deg: Math.max(-90, Math.min(90, dec))
+                };
+            }
+
+            processDetections() {
+                this.log('Processing detections with pixel coordinate support...', 'info');
+
+                const validDetections = this.data.detections.filter(detection => {
+                    return this.validateDetection(detection);
+                });
+
+                this.log(`Found ${validDetections.length} detections with valid coordinates`, 'success');
+
+                const enhancedDetections = validDetections.map(detection => {
+                    const enhanced = { ...detection };
+
+                    enhanced.confidence = enhanced.confidence || 0;
+                    enhanced.observer = enhanced.observer || 'PulseHunter';
+
+                    // Generate sky coordinates if needed
+                    if ((enhanced.ra_deg === null || enhanced.dec_deg === null) &&
+                        enhanced.x && enhanced.y && this.options.generateCoordinates) {
+
+                        const skyCoords = this.pixelToSkyCoordinates(enhanced.x, enhanced.y);
+                        enhanced.ra_deg = skyCoords.ra_deg;
+                        enhanced.dec_deg = skyCoords.dec_deg;
+                        enhanced._generated_coords = true;
+                    }
+
+                    return enhanced;
+                });
+
+                // Final filter for detections with coordinates
+                const finalDetections = enhancedDetections.filter(detection => {
+                    return typeof detection.ra_deg === 'number' &&
+                           typeof detection.dec_deg === 'number' &&
+                           !isNaN(detection.ra_deg) &&
+                           !isNaN(detection.dec_deg);
+                });
+
+                this.data.detections = finalDetections;
+                this.data.statistics.validDetections = finalDetections.length;
+
+                const generatedCount = finalDetections.filter(d => d._generated_coords).length;
+                this.data.statistics.generatedCoordinates = generatedCount;
+
+                if (generatedCount > 0) {
+                    this.log(`Generated sky coordinates for ${generatedCount} detections`, 'info');
+                }
+            }
+
+            calculateStatistics() {
+                const stats = this.data.statistics;
+                const detections = this.data.detections;
+
+                stats.totalDetections = detections.length;
+                stats.exoplanetCandidates = detections.filter(d => d.exo_match).length;
+                stats.uniqueObservers = new Set(detections.map(d => d.observer || 'Unknown')).size;
+                stats.highConfidence = detections.filter(d => (d.confidence || 0) >= 0.8).length;
+                stats.dimmingEvents = detections.filter(d => d.dimming === true).length;
+                stats.brighteningEvents = detections.filter(d => d.dimming === false).length;
+            }
+
+            getDetections(filters = {}) {
+                return [...this.data.detections];
+            }
+
+            getStatistics() {
+                return { ...this.data.statistics };
+            }
+
+            isLoaded() {
+                return this.data.detections.length > 0;
+            }
+        }
+
+        // Test UI
+        let dataLoader;
+
+        function addLog(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+
+            const span = document.createElement('span');
+            span.className = type;
+            span.textContent = `[${timestamp}] ${message}\n`;
+
+            logEl.appendChild(span);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function updateStats(stats) {
+            document.getElementById('total-loaded').textContent = stats.totalDetections || 0;
+            document.getElementById('valid-detections').textContent = stats.validDetections || 0;
+            document.getElementById('generated-coords').textContent = stats.generatedCoordinates || 0;
+            document.getElementById('dimming-events').textContent = stats.dimmingEvents || 0;
+            document.getElementById('brightening-events').textContent = stats.brighteningEvents || 0;
+            document.getElementById('high-confidence').textContent = stats.highConfidence || 0;
+        }
+
+        function showSample() {
+            if (dataLoader && dataLoader.isLoaded()) {
+                const detections = dataLoader.data.detections;
+                if (detections.length > 0) {
+                    const sample = detections[0];
+                    document.getElementById('sample').textContent = JSON.stringify(sample, null, 2);
+                }
+            }
+        }
+
+        async function loadData() {
+            try {
+                updateStatus('Loading with fixed data loader...');
+
+                dataLoader = new PulseHunterDataLoader({
+                    debug: true,
+                    generateCoordinates: true
+                });
+
+                dataLoader.on('log', (event) => {
+                    addLog(event.message, event.type);
+                });
+
+                dataLoader.on('loadComplete', (data) => {
+                    updateStatus(`✅ Success! ${data.statistics.validDetections} detections ready`);
+                    updateStats(data.statistics);
+                    addLog('🎉 All your detections are now usable for visualization!', 'success');
+                });
+
+                const data = await dataLoader.loadAllData();
+
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`);
+                addLog(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('Fixed data loader test ready!', 'success');
+
+            document.getElementById('load-data').addEventListener('click', loadData);
+            document.getElementById('show-sample').addEventListener('click', showSample);
+        });
+    </script>
+</body>
+</html>
