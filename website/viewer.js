@@ -12,6 +12,7 @@ class PulseHunterViewer {
         this.loadingState = false;
         this.retryCount = 0;
         this.maxRetries = 3;
+        this.debugOverlay = this.createDebugOverlay();
 
         // Performance monitoring
         this.performanceMetrics = {
@@ -90,6 +91,7 @@ class PulseHunterViewer {
                 setTimeout(() => {
                     if (this.aladin) {
                         console.log('✅ Aladin initialized successfully');
+                        this.logDebug('Aladin initialized ✔');
                         resolve();
                     } else {
                         reject(new Error('Aladin failed to initialize'));
@@ -138,6 +140,7 @@ class PulseHunterViewer {
             }
 
             console.log(`✅ Successfully loaded ${this.detections.length} total detections`);
+            this.logDebug(`Loaded ${this.detections.length} detections`);
 
             if (this.detections.length === 0) {
                 throw new Error('No detections found in any report files');
@@ -170,31 +173,53 @@ class PulseHunterViewer {
         }
 
         try {
-            const response = await fetch('reports/', {
+            const response = await fetch(`reports/?t=${Date.now()}`, {
                 headers: {
                     'Cache-Control': 'no-cache'
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
             const html = await response.text();
             const fileMatches = [...html.matchAll(/href="(report_\d{8}_\d{6}\.json)"/g)];
-            const files = fileMatches.map(match => match[1]).sort().reverse(); // Most recent first
+            const files = fileMatches.map(match => match[1]).sort().reverse();
 
-            // Cache the result
-            this.cache.set(cacheKey, {
-                data: files,
-                timestamp: Date.now()
-            });
-
-            return files;
+            if (files.length > 0) {
+                this.cache.set(cacheKey, {
+                    data: files,
+                    timestamp: Date.now()
+                });
+                return files;
+            } else {
+                throw new Error('No report files found in directory listing');
+            }
 
         } catch (error) {
-            console.error('Failed to fetch report file list:', error);
-            throw error;
+            console.warn('⚠️ Directory listing failed or empty, falling back to reports.json');
+
+            try {
+                const fallbackResponse = await fetch(`reports/reports.json?t=${Date.now()}`, {
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+
+                if (!fallbackResponse.ok) throw new Error(`HTTP ${fallbackResponse.status}`);
+
+                const reports = await fallbackResponse.json();
+
+                const filenames = reports.map(r => r.filename).sort().reverse();
+
+                this.cache.set(cacheKey, {
+                    data: filenames,
+                    timestamp: Date.now()
+                });
+
+                return filenames;
+
+            } catch (fallbackError) {
+                console.error('❌ Fallback to reports.json also failed:', fallbackError);
+                throw fallbackError;
+            }
         }
     }
 
@@ -251,6 +276,7 @@ class PulseHunterViewer {
 
     renderVisualization() {
         if (!this.aladin || this.detections.length === 0) {
+            this.logDebug('⚠️ No detections found — nothing to render.');
             console.warn('Cannot render visualization: missing Aladin or detections');
             return;
         }
@@ -295,6 +321,7 @@ class PulseHunterViewer {
             this.setOptimalView();
 
             this.performanceMetrics.renderEnd = performance.now();
+        this.logDebug('Sky map rendered ✔');
             console.log(`🎨 Visualization rendered in ${(this.performanceMetrics.renderEnd - this.performanceMetrics.renderStart).toFixed(2)}ms`);
 
         } catch (error) {
@@ -780,6 +807,36 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     event.preventDefault();
 });
+
+
+
+    createDebugOverlay() {
+        const overlay = document.createElement('div');
+        overlay.id = 'debug-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            background: rgba(0,0,0,0.85);
+            color: #0f0;
+            padding: 0.5rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            max-height: 30vh;
+            overflow-y: auto;
+            z-index: 9999;
+        `;
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    logDebug(message) {
+        console.log(message);
+        const p = document.createElement('div');
+        p.textContent = `🟢 ${message}`;
+        this.debugOverlay.appendChild(p);
+    }
+
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
