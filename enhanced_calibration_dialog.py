@@ -1,6 +1,7 @@
 """
 Enhanced Calibration Setup Dialog for PulseHunter
 Handles creation of master calibration files and ASTAP configuration
+With collapsible ASTAP section and improved UI
 """
 
 import os
@@ -10,13 +11,112 @@ from PyQt6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
                              QGridLayout, QLabel, QPushButton, QFileDialog, 
                              QLineEdit, QProgressBar, QTextEdit, QGroupBox, 
                              QComboBox, QCheckBox, QMessageBox, QTabWidget, 
-                             QWidget, QSplitter, QFrame)
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QSettings, QRect
+                             QWidget, QSplitter, QFrame, QToolButton, QSizePolicy)
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QSettings, QRect, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QIcon, QFont
+from PyQt6.QtWidgets import QDialog
 import threading
 import time
 import logging
 from calibration_utilities import CalibrationConfig, ASTAPManager, CalibrationLogger
+
+class CollapsibleGroupBox(QGroupBox):
+    """A collapsible group box widget"""
+    
+    def __init__(self, title="", parent=None):
+        super().__init__(title, parent)
+        self.is_collapsed = False
+        self.setup_ui()
+        
+    def setup_ui(self):
+        # Create toggle button
+        self.toggle_button = QToolButton()
+        self.toggle_button.setText("▼")  # Down arrow when expanded
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)
+        self.toggle_button.setStyleSheet("""
+            QToolButton {
+                background: transparent;
+                border: none;
+                color: #4299e1;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 2px;
+            }
+            QToolButton:hover {
+                color: #63b3ed;
+            }
+        """)
+        self.toggle_button.clicked.connect(self.toggle_collapsed)
+        
+        # Store the original content widget
+        self.content_widget = QWidget()
+        self.original_layout = self.layout()
+        
+    def setContentLayout(self, layout):
+        """Set the layout for the collapsible content"""
+        if self.original_layout:
+            # Remove existing layout
+            while self.original_layout.count():
+                child = self.original_layout.takeAt(0)
+                if child.widget():
+                    child.widget().setParent(None)
+        
+        # Create new main layout
+        main_layout = QVBoxLayout(self)
+        
+        # Header with toggle button and title
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(self.toggle_button)
+        
+        title_label = QLabel(self.title())
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #4299e1;
+                font-size: 14px;
+                font-weight: 700;
+                padding: 4px 8px;
+            }
+        """)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        main_layout.addLayout(header_layout)
+        
+        # Content widget
+        self.content_widget.setLayout(layout)
+        main_layout.addWidget(self.content_widget)
+        
+        # Set size policy
+        self.content_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        
+    def toggle_collapsed(self):
+        """Toggle the collapsed state"""
+        self.is_collapsed = not self.is_collapsed
+        
+        if self.is_collapsed:
+            self.content_widget.hide()
+            self.toggle_button.setText("▶")  # Right arrow when collapsed
+            self.toggle_button.setToolTip("Click to expand ASTAP configuration")
+        else:
+            self.content_widget.show()
+            self.toggle_button.setText("▼")  # Down arrow when expanded
+            self.toggle_button.setToolTip("Click to collapse ASTAP configuration")
+            
+        # Trigger resize
+        self.updateGeometry()
+        if self.parent():
+            self.parent().adjustSize()
+            
+    def collapse(self, animated=False):
+        """Collapse the group box"""
+        if not self.is_collapsed:
+            self.toggle_collapsed()
+            
+    def expand(self, animated=False):
+        """Expand the group box"""
+        if self.is_collapsed:
+            self.toggle_collapsed()
 
 class CalibrationWorker(QThread):
     """Worker thread for calibration processing to avoid UI freezing"""
@@ -99,7 +199,7 @@ class CalibrationWorker(QThread):
         self.finished.emit(True, f"Master {self.calibration_type} calibration created successfully!")
 
 class CalibrationSetupDialog(QDialog):
-    """Enhanced calibration setup dialog with consistent positioning and features"""
+    """Enhanced calibration setup dialog with collapsible ASTAP section"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -120,7 +220,7 @@ class CalibrationSetupDialog(QDialog):
         # Main layout
         layout = QVBoxLayout(self)
         
-        # ASTAP Configuration section
+        # ASTAP Configuration section (now collapsible)
         self.setup_astap_section(layout)
         
         # Create tab widget for different calibration types
@@ -138,65 +238,112 @@ class CalibrationSetupDialog(QDialog):
         self.setup_buttons(layout)
         
     def setup_astap_section(self, layout):
-        """Setup ASTAP executable configuration section"""
-        astap_group = QGroupBox("ASTAP Plate Solving Configuration")
-        astap_layout = QVBoxLayout(astap_group)
+        """Setup collapsible ASTAP executable configuration section"""
+        self.astap_group = CollapsibleGroupBox("ASTAP Plate Solving Configuration")
+        
+        # Create the content layout
+        astap_content_layout = QVBoxLayout()
         
         # Info text
         info_label = QLabel(
             "ASTAP is required for plate solving and astrometric calibration. "
-            "Please specify the location of your ASTAP executable."
+            "Configure the location of your ASTAP executable below."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666; font-style: italic; margin-bottom: 10px;")
-        astap_layout.addWidget(info_label)
+        info_label.setStyleSheet("""
+            QLabel {
+                color: #a0aec0; 
+                font-style: italic; 
+                margin-bottom: 10px;
+                padding: 8px;
+                background-color: rgba(66, 153, 225, 0.1);
+                border-radius: 6px;
+                border: 1px solid rgba(66, 153, 225, 0.2);
+            }
+        """)
+        astap_content_layout.addWidget(info_label)
         
-        # ASTAP path configuration
-        path_layout = QHBoxLayout()
+        # ASTAP path configuration in a grid for better organization
+        config_frame = QFrame()
+        config_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(26, 32, 44, 0.5);
+                border-radius: 8px;
+                padding: 10px;
+                margin: 5px;
+            }
+        """)
+        config_layout = QGridLayout(config_frame)
+        
+        # Status indicator and path display row
+        config_layout.addWidget(QLabel("Status:"), 0, 0)
         
         # Status indicator
         self.astap_status_label = QLabel("●")
         self.astap_status_label.setFixedSize(20, 20)
         self.astap_status_label.setStyleSheet("color: red; font-size: 16px; font-weight: bold;")
         self.astap_status_label.setToolTip("ASTAP status indicator")
-        path_layout.addWidget(self.astap_status_label)
+        config_layout.addWidget(self.astap_status_label, 0, 1)
         
-        # Path display
+        # Status text
+        self.astap_status_text = QLabel("ASTAP executable not found")
+        self.astap_status_text.setStyleSheet("color: #a0aec0; font-size: 12px;")
+        config_layout.addWidget(self.astap_status_text, 0, 2, 1, 2)
+        
+        # Path display row
+        config_layout.addWidget(QLabel("Path:"), 1, 0)
+        
         self.astap_path_edit = QLineEdit()
         self.astap_path_edit.setPlaceholderText("ASTAP executable not configured...")
         self.astap_path_edit.setReadOnly(True)
         self.astap_path_edit.setStyleSheet("""
             QLineEdit[readOnly="true"] {
-                background-color: #f5f5f5;
-                color: #333;
-                border: 1px solid #ccc;
+                background-color: #2d3748;
+                color: #e8e8e8;
+                border: 1px solid #4a5568;
                 padding: 6px;
-                border-radius: 3px;
+                border-radius: 4px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 11px;
             }
         """)
-        path_layout.addWidget(self.astap_path_edit)
+        config_layout.addWidget(self.astap_path_edit, 1, 1, 1, 3)
         
-        # Browse button
+        # Button row
+        button_layout = QHBoxLayout()
+        
+        # Browse button with proper sizing
         self.astap_browse_btn = QPushButton("Browse...")
-        self.astap_browse_btn.setFixedWidth(80)
+        self.astap_browse_btn.setMinimumWidth(100)
+        self.astap_browse_btn.setToolTip("Browse for ASTAP executable file")
         self.astap_browse_btn.clicked.connect(self.browse_astap_executable)
-        path_layout.addWidget(self.astap_browse_btn)
+        button_layout.addWidget(self.astap_browse_btn)
         
-        # Test button
+        # Auto-detect button
+        self.astap_detect_btn = QPushButton("Auto-Detect")
+        self.astap_detect_btn.setMinimumWidth(100)
+        self.astap_detect_btn.setToolTip("Automatically search for ASTAP installation")
+        self.astap_detect_btn.clicked.connect(self.auto_detect_astap)
+        button_layout.addWidget(self.astap_detect_btn)
+        
+        # Test button with proper sizing
         self.astap_test_btn = QPushButton("Test")
-        self.astap_test_btn.setFixedWidth(60)
+        self.astap_test_btn.setMinimumWidth(80)
+        self.astap_test_btn.setToolTip("Test ASTAP executable")
         self.astap_test_btn.clicked.connect(self.test_astap_executable)
         self.astap_test_btn.setEnabled(False)
-        path_layout.addWidget(self.astap_test_btn)
+        button_layout.addWidget(self.astap_test_btn)
         
-        astap_layout.addLayout(path_layout)
+        button_layout.addStretch()
         
-        # Status text
-        self.astap_status_text = QLabel("ASTAP executable not found")
-        self.astap_status_text.setStyleSheet("color: #666; font-size: 11px; margin-top: 5px;")
-        astap_layout.addWidget(self.astap_status_text)
+        config_layout.addLayout(button_layout, 2, 0, 1, 4)
         
-        layout.addWidget(astap_group)
+        astap_content_layout.addWidget(config_frame)
+        
+        # Set the content layout for the collapsible group
+        self.astap_group.setContentLayout(astap_content_layout)
+        
+        layout.addWidget(self.astap_group)
         
     def setup_create_tab(self):
         """Tab for creating new master calibration files"""
@@ -212,13 +359,15 @@ class CalibrationSetupDialog(QDialog):
         instructions.setWordWrap(True)
         instructions.setStyleSheet("""
             QLabel { 
-                background-color: #f0f8ff; 
-                color: #1e3a8a;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(66, 153, 225, 0.15), stop:1 rgba(66, 153, 225, 0.05));
+                color: #e8e8e8;
                 padding: 15px; 
                 border-radius: 8px; 
-                border: 1px solid #93c5fd;
+                border: 1px solid rgba(66, 153, 225, 0.3);
                 font-weight: 500;
                 font-size: 13px;
+                margin-bottom: 10px;
             }
         """)
         layout.addWidget(instructions)
@@ -277,7 +426,7 @@ class CalibrationSetupDialog(QDialog):
         
         # Status label
         status_label = QLabel("Not selected")
-        status_label.setStyleSheet("color: gray;")
+        status_label.setStyleSheet("color: #a0aec0;")
         setattr(self, f"{type_key}_status", status_label)
         grid_layout.addWidget(status_label, row, 3)
         
@@ -295,13 +444,15 @@ class CalibrationSetupDialog(QDialog):
         instructions.setWordWrap(True)
         instructions.setStyleSheet("""
             QLabel { 
-                background-color: #f0fdf4; 
-                color: #166534;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(72, 187, 120, 0.15), stop:1 rgba(72, 187, 120, 0.05));
+                color: #e8e8e8;
                 padding: 15px; 
                 border-radius: 8px; 
-                border: 1px solid #86efac;
+                border: 1px solid rgba(72, 187, 120, 0.3);
                 font-weight: 500;
                 font-size: 13px;
+                margin-bottom: 10px;
             }
         """)
         layout.addWidget(instructions)
@@ -355,7 +506,7 @@ class CalibrationSetupDialog(QDialog):
         
         # Status label
         self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("font-weight: bold; color: #2c5aa0;")
+        self.status_label.setStyleSheet("font-weight: bold; color: #4299e1;")
         progress_layout.addWidget(self.status_label)
         
         # Progress bar
@@ -382,7 +533,8 @@ class CalibrationSetupDialog(QDialog):
         self.process_btn = QPushButton("Create Master Files")
         self.process_btn.setStyleSheet("""
             QPushButton {
-                background-color: #4CAF50;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #48bb78, stop:1 #38a169);
                 color: white;
                 border: none;
                 padding: 8px 16px;
@@ -390,10 +542,12 @@ class CalibrationSetupDialog(QDialog):
                 border-radius: 4px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #68d391, stop:1 #48bb78);
             }
             QPushButton:disabled {
-                background-color: #cccccc;
+                background: #4a5568;
+                color: #a0aec0;
             }
         """)
         self.process_btn.clicked.connect(self.start_processing)
@@ -466,6 +620,10 @@ class CalibrationSetupDialog(QDialog):
         output_path = self.settings.value("output_folder", "")
         self.output_folder_edit.setText(output_path)
         
+        # Auto-collapse ASTAP section if it's working
+        if self.astap_manager.is_configured():
+            self.astap_group.collapse()
+        
     def save_settings(self):
         """Save current settings"""
         # Save ASTAP path
@@ -483,11 +641,18 @@ class CalibrationSetupDialog(QDialog):
     # ASTAP-related methods
     def auto_detect_astap(self):
         """Attempt to auto-detect ASTAP executable"""
+        self.add_log_entry("Searching for ASTAP installation...")
         detected_path = self.astap_manager.auto_detect_astap()
         if detected_path:
             self.astap_path_edit.setText(detected_path)
             self.validate_astap_executable(detected_path)
             self.add_log_entry(f"Auto-detected ASTAP at: {detected_path}")
+            
+            # Auto-collapse if ASTAP is working
+            if self.astap_manager.is_configured():
+                self.astap_group.collapse()
+        else:
+            self.add_log_entry("ASTAP not found - manual configuration required")
                     
     def browse_astap_executable(self):
         """Browse for ASTAP executable"""
@@ -508,6 +673,10 @@ class CalibrationSetupDialog(QDialog):
         if file_path:
             self.astap_path_edit.setText(file_path)
             self.validate_astap_executable(file_path)
+            
+            # Auto-collapse if ASTAP is working
+            if self.astap_manager.is_configured():
+                self.astap_group.collapse()
             
     def validate_astap_executable(self, path):
         """Validate the ASTAP executable - skip execution test to prevent dialogs"""
@@ -538,27 +707,19 @@ class CalibrationSetupDialog(QDialog):
         self.update_astap_status(True, f"ASTAP {app_type} version validated: {path_obj.name}")
         return True
             
-    def extract_astap_version(self, help_output):
-        """Extract version information from ASTAP help output"""
-        lines = help_output.split('\n')
-        for line in lines[:5]:  # Check first few lines
-            if any(word in line.lower() for word in ['version', 'v.', 'astap']):
-                return line.strip()
-        return "Version unknown"
-        
     def update_astap_status(self, is_valid, message):
         """Update ASTAP status indicators"""
         if is_valid:
             self.astap_status_label.setStyleSheet("color: green; font-size: 16px; font-weight: bold;")
             self.astap_status_label.setToolTip("ASTAP executable found and validated")
             self.astap_status_text.setText(message)
-            self.astap_status_text.setStyleSheet("color: green; font-size: 11px; margin-top: 5px;")
+            self.astap_status_text.setStyleSheet("color: green; font-size: 12px;")
             self.astap_test_btn.setEnabled(True)
         else:
             self.astap_status_label.setStyleSheet("color: red; font-size: 16px; font-weight: bold;")
             self.astap_status_label.setToolTip("ASTAP executable not found or invalid")
             self.astap_status_text.setText(message)
-            self.astap_status_text.setStyleSheet("color: red; font-size: 11px; margin-top: 5px;")
+            self.astap_status_text.setStyleSheet("color: red; font-size: 12px;")
             self.astap_test_btn.setEnabled(False)
             
     def test_astap_executable(self):
@@ -572,7 +733,6 @@ class CalibrationSetupDialog(QDialog):
         app_type = "CLI" if is_cli else "GUI"
         
         if not is_cli:
-            from PyQt6.QtWidgets import QMessageBox
             reply = QMessageBox.question(
                 self,
                 "Test ASTAP GUI Version",
@@ -597,7 +757,8 @@ class CalibrationSetupDialog(QDialog):
                 QMessageBox.information(
                     self, 
                     f"ASTAP {app_type} Test", 
-                    f"ASTAP executable test successful!\n\nReturn code: {result.returncode}\nOutput preview:\n{output_preview}..."
+                    f"ASTAP executable test successful!\n\n"
+                    f"Return code: {result.returncode}\nOutput preview:\n{output_preview}..."
                 )
             else:
                 self.add_log_entry(f"ASTAP test failed with return code: {result.returncode}")
