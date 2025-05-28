@@ -1,4 +1,10 @@
+"""
+Exoplanet Transit Matching Module for PulseHunter
+Updated to use NASA Exoplanet Archive PS (Planetary Systems) table
+"""
+
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import SkyCoord
 from astroquery.nasa_exoplanet_archive import NasaExoplanetArchive
 
@@ -18,10 +24,12 @@ def match_transits_with_exoplanets(detections, radius_arcsec=5.0):
         list: Updated detections with exoplanet matches
     """
     try:
+        print("Querying NASA Exoplanet Archive (PS table)...")
+        
         # Query the new PS (Planetary Systems) table
         catalog = NasaExoplanetArchive.query_criteria(
             table="ps",  # Updated from deprecated "exoplanets" table
-            select="pl_name,ra,dec,pl_orbper,pl_trandep,hostname,sy_dist,pl_rade,pl_masse",
+            select="pl_name,ra,dec,pl_orbper,pl_trandep,hostname,sy_dist,pl_rade,pl_masse,disc_year",
             where="pl_trandep IS NOT NULL AND ra IS NOT NULL AND dec IS NOT NULL",
         )
         
@@ -95,6 +103,9 @@ def match_transits_with_exoplanets(detections, radius_arcsec=5.0):
                 
             if best_match["pl_masse"] and not np.isnan(float(best_match["pl_masse"])):
                 exo_match["mass_earth"] = round(float(best_match["pl_masse"]), 2)
+                
+            if best_match["disc_year"] and not np.isnan(float(best_match["disc_year"])):
+                exo_match["discovery_year"] = int(best_match["disc_year"])
             
             det["exo_match"] = exo_match
             match_count += 1
@@ -106,7 +117,8 @@ def match_transits_with_exoplanets(detections, radius_arcsec=5.0):
 
         matched.append(det)
 
-    print(f"Exoplanet cross-matching complete: {match_count} matches found out of {len([d for d in detections if d.get('dimming')])} dimming events")
+    dimming_count = len([d for d in detections if d.get('dimming')])
+    print(f"Exoplanet cross-matching complete: {match_count} matches found out of {dimming_count} dimming events")
     return matched
 
 
@@ -118,19 +130,31 @@ def get_exoplanet_stats():
         dict: Statistics about available exoplanets
     """
     try:
+        print("Querying exoplanet statistics from PS table...")
+        
         # Query basic statistics from the PS table
         catalog = NasaExoplanetArchive.query_criteria(
             table="ps",
-            select="pl_name,pl_trandep,pl_orbper,disc_year",
+            select="pl_name,pl_trandep,pl_orbper,disc_year,hostname",
             where="pl_trandep IS NOT NULL"
         )
         
         total_transiting = len(catalog)
         recent_discoveries = len([row for row in catalog if row["disc_year"] and row["disc_year"] >= 2020])
         
+        # Count unique host stars
+        unique_hosts = len(set([row["hostname"] for row in catalog if row["hostname"]]))
+        
+        # Get discovery year range
+        years = [row["disc_year"] for row in catalog if row["disc_year"]]
+        min_year = int(min(years)) if years else None
+        max_year = int(max(years)) if years else None
+        
         return {
             "total_transiting_planets": total_transiting,
+            "unique_host_stars": unique_hosts,
             "recent_discoveries_2020_plus": recent_discoveries,
+            "discovery_year_range": f"{min_year}-{max_year}" if min_year and max_year else "Unknown",
             "table_version": "ps (Planetary Systems)",
             "last_updated": "Live query from NASA Exoplanet Archive"
         }
@@ -153,7 +177,7 @@ def test_exoplanet_query():
         # Test a simple query
         test_query = NasaExoplanetArchive.query_criteria(
             table="ps",
-            select="pl_name,hostname,disc_year,ra,dec,pl_trandep",
+            select="pl_name,hostname,disc_year,ra,dec,pl_trandep,pl_orbper",
             where="disc_year > 2020 AND pl_trandep IS NOT NULL"
         )
         
@@ -165,6 +189,8 @@ def test_exoplanet_query():
             print(f"  Discovery year: {sample['disc_year']}")
             print(f"  Coordinates: RA={sample['ra']:.4f}°, Dec={sample['dec']:.4f}°")
             print(f"  Transit depth: {sample['pl_trandep']:.6f}")
+            if sample['pl_orbper']:
+                print(f"  Orbital period: {sample['pl_orbper']:.2f} days")
             
         return True
         
@@ -173,26 +199,149 @@ def test_exoplanet_query():
         return False
 
 
-# Add numpy import for NaN checking
-import numpy as np
+def search_known_exoplanets_by_coordinates(ra_deg, dec_deg, radius_arcsec=30.0):
+    """
+    Search for known exoplanets near given coordinates
+    
+    Args:
+        ra_deg (float): Right Ascension in degrees
+        dec_deg (float): Declination in degrees  
+        radius_arcsec (float): Search radius in arcseconds
+        
+    Returns:
+        list: List of nearby exoplanets with details
+    """
+    try:
+        # Query PS table for nearby transiting exoplanets
+        catalog = NasaExoplanetArchive.query_criteria(
+            table="ps",
+            select="pl_name,hostname,ra,dec,pl_orbper,pl_trandep,sy_dist,pl_rade,pl_masse,disc_year",
+            where="pl_trandep IS NOT NULL AND ra IS NOT NULL AND dec IS NOT NULL",
+        )
+        
+        coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
+        nearby_exoplanets = []
+        
+        for row in catalog:
+            try:
+                ep_coord = SkyCoord(row["ra"] * u.deg, row["dec"] * u.deg, frame="icrs")
+                sep = coord.separation(ep_coord).arcsecond
+                
+                if sep <= radius_arcsec:
+                    exoplanet_info = {
+                        "planet_name": str(row["pl_name"]),
+                        "host_star": str(row["hostname"]),
+                        "separation_arcsec": round(sep, 2),
+                        "ra_deg": round(float(row["ra"]), 6),
+                        "dec_deg": round(float(row["dec"]), 6),
+                        "period_days": round(float(row["pl_orbper"]), 2) if row["pl_orbper"] else None,
+                        "transit_depth": float(row["pl_trandep"]) if row["pl_trandep"] else None,
+                        "distance_pc": round(float(row["sy_dist"]), 1) if row["sy_dist"] else None,
+                        "radius_earth": round(float(row["pl_rade"]), 2) if row["pl_rade"] else None,
+                        "mass_earth": round(float(row["pl_masse"]), 2) if row["pl_masse"] else None,
+                        "discovery_year": int(row["disc_year"]) if row["disc_year"] else None
+                    }
+                    nearby_exoplanets.append(exoplanet_info)
+                    
+            except Exception:
+                continue
+        
+        # Sort by separation
+        nearby_exoplanets.sort(key=lambda x: x["separation_arcsec"])
+        
+        return nearby_exoplanets
+        
+    except Exception as e:
+        print(f"Error searching for nearby exoplanets: {e}")
+        return []
+
+
+def get_recent_exoplanet_discoveries(years_back=5):
+    """
+    Get recently discovered transiting exoplanets
+    
+    Args:
+        years_back (int): Number of years back to search
+        
+    Returns:
+        list: List of recent exoplanet discoveries
+    """
+    try:
+        from datetime import datetime
+        current_year = datetime.now().year
+        min_year = current_year - years_back
+        
+        catalog = NasaExoplanetArchive.query_criteria(
+            table="ps",
+            select="pl_name,hostname,disc_year,ra,dec,pl_orbper,pl_trandep,sy_dist",
+            where=f"disc_year >= {min_year} AND pl_trandep IS NOT NULL AND ra IS NOT NULL AND dec IS NOT NULL",
+        )
+        
+        recent_discoveries = []
+        
+        for row in catalog:
+            discovery = {
+                "planet_name": str(row["pl_name"]),
+                "host_star": str(row["hostname"]),
+                "discovery_year": int(row["disc_year"]) if row["disc_year"] else None,
+                "ra_deg": round(float(row["ra"]), 6),
+                "dec_deg": round(float(row["dec"]), 6),
+                "period_days": round(float(row["pl_orbper"]), 2) if row["pl_orbper"] else None,
+                "transit_depth": float(row["pl_trandep"]) if row["pl_trandep"] else None,
+                "distance_pc": round(float(row["sy_dist"]), 1) if row["sy_dist"] else None
+            }
+            recent_discoveries.append(discovery)
+        
+        # Sort by discovery year (most recent first)
+        recent_discoveries.sort(key=lambda x: x["discovery_year"] or 0, reverse=True)
+        
+        return recent_discoveries
+        
+    except Exception as e:
+        print(f"Error getting recent discoveries: {e}")
+        return []
+
 
 if __name__ == "__main__":
     # Test the updated exoplanet query
-    print("=" * 50)
+    print("=" * 60)
     print("NASA EXOPLANET ARCHIVE PS TABLE TEST")
-    print("=" * 50)
+    print("=" * 60)
     
     if test_exoplanet_query():
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
         print("EXOPLANET STATISTICS")
-        print("=" * 50)
+        print("=" * 60)
         
         stats = get_exoplanet_stats()
         for key, value in stats.items():
-            print(f"{key}: {value}")
+            print(f"{key.replace('_', ' ').title()}: {value}")
             
-        print("\n✓ Migration to PS table completed successfully!")
-        print("✓ PulseHunter can now access the latest exoplanet data")
+        print("\n" + "=" * 60)
+        print("RECENT DISCOVERIES (Last 3 years)")
+        print("=" * 60)
+        
+        recent = get_recent_exoplanet_discoveries(3)
+        if recent:
+            print(f"Found {len(recent)} recent transiting exoplanets:")
+            for i, discovery in enumerate(recent[:5]):  # Show first 5
+                print(f"{i+1}. {discovery['planet_name']} ({discovery['discovery_year']})")
+                print(f"   Host: {discovery['host_star']}")
+                if discovery['period_days']:
+                    print(f"   Period: {discovery['period_days']:.2f} days")
+                if discovery['distance_pc']:
+                    print(f"   Distance: {discovery['distance_pc']} pc")
+                print()
+        else:
+            print("No recent discoveries found")
+        
+        print("=" * 60)
+        print("✅ Migration to PS table completed successfully!")
+        print("✅ PulseHunter can now access the latest exoplanet data")
+        print("=" * 60)
+        
     else:
-        print("\n✗ Migration test failed")
+        print("\n" + "=" * 60)
+        print("❌ Migration test failed")
         print("Please check your internet connection and astroquery installation")
+        print("=" * 60)

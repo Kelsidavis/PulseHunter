@@ -1,6 +1,7 @@
 """
 PulseHunter Main GUI Application - Enhanced and Fully Functional
 Optical SETI and Exoplanet Transit Detection Pipeline GUI
+Updated with processing fixes and improved error handling
 """
 
 import sys
@@ -40,7 +41,7 @@ from fits_processing import FITSProcessor, CalibrationProcessor
 from exoplanet_match import match_transits_with_exoplanets
 
 class ProcessingWorker(QThread):
-    """Worker thread for image processing to prevent GUI freezing"""
+    """Worker thread for image processing to prevent GUI freezing - Updated version"""
     
     progress_updated = pyqtSignal(int)
     status_updated = pyqtSignal(str)
@@ -54,8 +55,11 @@ class ProcessingWorker(QThread):
         self.is_cancelled = False
         self.mutex = QMutex()
         
+        # Add exception handling
+        self.finished.connect(self.cleanup)
+        
     def run(self):
-        """Main processing function"""
+        """Main processing function with better error handling"""
         try:
             self.status_updated.emit("Initializing processing...")
             self.log_updated.emit("Starting PulseHunter processing pipeline...")
@@ -170,13 +174,26 @@ class ProcessingWorker(QThread):
             self.log_updated.emit(f"ERROR: {error_msg}")
             self.log_updated.emit(traceback.format_exc())
             self.processing_finished.emit(False, error_msg, [])
+        finally:
+            # Ensure cleanup happens
+            self.cleanup()
+            
+    def cleanup(self):
+        """Clean up resources"""
+        try:
+            self.is_cancelled = True
+            # Any cleanup code here
+        except Exception as e:
+            print(f"Cleanup error: {e}")
             
     def cancel(self):
-        """Cancel processing"""
-        self.mutex.lock()
-        self.is_cancelled = True
-        self.mutex.unlock()
-        self.status_updated.emit("Cancelling processing...")
+        """Cancel processing safely"""
+        try:
+            self.mutex.lock()
+            self.is_cancelled = True
+            self.status_updated.emit("Cancelling processing...")
+        finally:
+            self.mutex.unlock()
 
 class DetectionResultsWidget(QWidget):
     """Widget for displaying detection results"""
@@ -635,7 +652,7 @@ class ProjectConfigDialog(QDialog):
         }
 
 class PulseHunterMainWindow(QMainWindow):
-    """Enhanced PulseHunter main window - Fully Functional"""
+    """Enhanced PulseHunter main window - Fully Functional with Processing Fixes"""
 
     def __init__(self):
         super().__init__()
@@ -1251,8 +1268,6 @@ class PulseHunterMainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error Loading Project", f"Could not load project:\n{str(e)}")
                 
-    import numpy as np
-
     def save_project(self):
         """Save current project"""
         if not self.current_project:
@@ -1531,34 +1546,82 @@ class PulseHunterMainWindow(QMainWindow):
             self.add_processing_log("Processing cancellation requested...")
             
     def processing_finished(self, success, message, detections):
-        """Handle processing completion"""
-        # Update UI
-        self.processing_progress.setVisible(False)
-        self.cancel_btn.setVisible(False)
-        
-        if success:
-            self.processing_status.setText("Processing completed successfully!")
-            self.current_detections = detections
-            self.results_widget.update_detections(detections)
+        """Handle processing completion - Fixed GUI hang issue"""
+        try:
+            print(f"Processing finished: success={success}, detections={len(detections)}")
             
-            # Update project
-            if not self.current_project:
-                self.current_project = {'created': datetime.now().isoformat()}
-            self.current_project['detections'] = detections
-            self.current_project['last_processed'] = datetime.now().isoformat()
+            # Update UI first - do this immediately
+            self.processing_progress.setVisible(False)
+            self.cancel_btn.setVisible(False)
             
-            self.update_project_status()
+            # Force UI update
+            QApplication.processEvents()
             
-            # Switch to results tab
-            self.tab_widget.setCurrentIndex(2)
+            if success:
+                self.processing_status.setText("Processing completed successfully!")
+                self.current_detections = detections
+                
+                # Update project data
+                if not self.current_project:
+                    self.current_project = {'created': datetime.now().isoformat()}
+                self.current_project['detections'] = detections
+                self.current_project['last_processed'] = datetime.now().isoformat()
+                
+                # Update status indicators immediately
+                self.update_status_indicators()
+                self.update_project_status()
+                
+                # Force another UI update
+                QApplication.processEvents()
+                
+                # Update results widget in a separate timer
+                QTimer.singleShot(100, lambda: self.update_results_safely(detections))
+                
+                # Switch to results tab after a delay
+                QTimer.singleShot(200, lambda: self.tab_widget.setCurrentIndex(2))
+                
+                # Show success message after everything else
+                QTimer.singleShot(500, lambda: self.show_success_message_safe(message, len(detections)))
+                
+            else:
+                self.processing_status.setText("Processing failed!")
+                # Show error message with delay
+                QTimer.singleShot(100, lambda: self.show_error_message_safe(message))
+                
+            # Clean up worker thread with delay to prevent hang
+            QTimer.singleShot(1000, self.cleanup_worker_thread)
             
-            QMessageBox.information(self, "Processing Complete", message)
-        else:
-            self.processing_status.setText("Processing failed!")
-            QMessageBox.critical(self, "Processing Error", f"Processing failed:\n\n{message}")
-            
-        self.processing_worker = None
-        self.update_status_indicators()
+        except Exception as e:
+            print(f"Error in processing_finished: {e}")
+            import traceback
+            traceback.print_exc()
+            # Force cleanup even if there's an error
+            QTimer.singleShot(1000, self.cleanup_worker_thread)
+    def show_success_message(self, message, detection_count):
+        """Show success message without blocking the UI"""
+        try:
+            # Show status in status bar
+            if detection_count > 0:
+                self.status_bar.showMessage(f"✅ Processing Complete! Found {detection_count} detections", 10000)
+                
+                # Show a brief, non-modal notification
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Icon.Information)
+                msg.setWindowTitle("Processing Complete")
+                msg.setText(f"🎉 Analysis Complete!\n\nFound {detection_count} potential detections.")
+                msg.setInformativeText("Results are now available in the Results tab.")
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.setModal(False)  # Non-modal - this is key!
+                msg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+                msg.show()
+                
+                # Auto-close after 5 seconds
+                QTimer.singleShot(5000, msg.close)
+            else:
+                self.status_bar.showMessage("✅ Processing Complete - No detections found", 5000)
+                
+        except Exception as e:
+            self.add_system_log(f"Error showing success message: {e}")
 
     def view_results(self):
         """View analysis results - Now fully functional"""
@@ -1720,31 +1783,106 @@ class PulseHunterMainWindow(QMainWindow):
             y = (screen.height() - self.height()) // 2
             self.move(x, y)
 
-    def closeEvent(self, event):
-        """Handle application closing"""
-        # Cancel any running processing
-        if self.processing_worker and self.processing_worker.isRunning():
-            reply = QMessageBox.question(
-                self, "Processing Active", 
-                "Image processing is still running. Cancel processing and exit?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self.processing_worker.cancel()
-                self.processing_worker.wait(3000)  # Wait up to 3 seconds
-            else:
-                event.ignore()
-                return
+    def update_results_safely(self, detections):
+        """Update results widget safely"""
+        try:
+            self.results_widget.update_detections(detections)
+            print(f"Results widget updated with {len(detections)} detections")
+        except Exception as e:
+            print(f"Error updating results widget: {e}")
+
+    def show_success_message_safe(self, message, detection_count):
+        """Show success message without causing GUI hang"""
+        try:
+            # Update status bar only - no dialog
+            self.status_bar.showMessage(f"✅ Found {detection_count} detections! Check Results tab.", 10000)
+            print(f"Processing complete: {detection_count} detections found")
+            
+            # Log to system log
+            self.add_system_log(f"Processing complete: {detection_count} detections found")
+            
+        except Exception as e:
+            print(f"Error showing success message: {e}")
+
+    def show_error_message_safe(self, message):
+        """Show error message safely"""
+        try:
+            self.status_bar.showMessage(f"❌ Processing failed: {message[:50]}...", 10000)
+            self.add_system_log(f"Processing failed: {message}")
+        except Exception as e:
+            print(f"Error showing error message: {e}")
+
+    def cleanup_worker_thread(self):
+        """Clean up worker thread safely"""
+        try:
+            if self.processing_worker:
+                print("Cleaning up worker thread...")
                 
-        # Save window geometry
-        self.settings.setValue("geometry", self.saveGeometry())
+                # Disconnect signals first
+                try:
+                    self.processing_worker.progress_updated.disconnect()
+                    self.processing_worker.status_updated.disconnect()
+                    self.processing_worker.log_updated.disconnect()
+                    self.processing_worker.processing_finished.disconnect()
+                except:
+                    pass  # Ignore if already disconnected
+                
+                # Stop the thread
+                if self.processing_worker.isRunning():
+                    self.processing_worker.quit()
+                    self.processing_worker.wait(2000)  # Wait max 2 seconds
+                    
+                    if self.processing_worker.isRunning():
+                        print("Force terminating worker thread...")
+                        self.processing_worker.terminate()
+                        self.processing_worker.wait(1000)
+                
+                # Delete the worker
+                self.processing_worker.deleteLater()
+                self.processing_worker = None
+                
+                print("Worker thread cleaned up successfully")
+                
+        except Exception as e:
+            print(f"Error cleaning up worker thread: {e}")
+            # Force set to None anyway
+            self.processing_worker = None
 
-        # Log application shutdown
-        self.logger.info("PulseHunter application closing")
-        self.add_system_log("Application shutting down...")
+    def closeEvent(self, event):
+        """Handle application closing - Improved version"""
+        try:
+            # Cancel any running processing
+            if self.processing_worker and self.processing_worker.isRunning():
+                reply = QMessageBox.question(
+                    self, "Processing Active", 
+                    "Image processing is still running. Cancel processing and exit?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No  # Default to No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.processing_worker.cancel()
+                    self.processing_worker.quit()
+                    self.processing_worker.wait(5000)  # Wait up to 5 seconds
+                    if self.processing_worker.isRunning():
+                        self.processing_worker.terminate()
+                        self.processing_worker.wait(2000)
+                else:
+                    event.ignore()
+                    return
+                    
+            # Save window geometry
+            self.settings.setValue("geometry", self.saveGeometry())
 
-        # Accept the close event
-        event.accept()
+            # Log application shutdown
+            self.logger.info("PulseHunter application closing normally")
+            self.add_system_log("Application shutting down...")
+
+            # Accept the close event
+            event.accept()
+            
+        except Exception as e:
+            print(f"Error during close: {e}")
+            event.accept()  # Close anyway
 
 def apply_dark_theme(app):
     """Apply beautiful dark space theme"""
