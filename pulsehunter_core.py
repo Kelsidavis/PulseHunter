@@ -77,6 +77,7 @@ def plate_solve_astap(filepath, astap_exe="astap"):
         print(f"ASTAP error: {e}")
 
 
+
 def load_fits_stack(
     folder,
     plate_solve_missing=False,
@@ -87,6 +88,55 @@ def load_fits_stack(
     camera_mode="mono",
     filter_name=None,
 ):
+    from concurrent.futures import ThreadPoolExecutor
+    from astropy.io import fits
+    from astropy.wcs import WCS
+
+    frames, filenames, wcs_objects = [], [], []
+
+    if not os.path.exists(folder):
+        print(f"Error: Folder {folder} does not exist")
+        return np.array([]), [], []
+
+    fits_files = [f for f in sorted(os.listdir(folder)) if f.endswith(".fits")]
+    if not fits_files:
+        print(f"No FITS files found in {folder}")
+        return np.array([]), [], []
+
+    def load_fits_file(file):
+        path = os.path.join(folder, file)
+        try:
+            hdr = fits.getheader(path)
+            has_wcs = "CRVAL1" in hdr and "CRVAL2" in hdr
+            if plate_solve_missing and not has_wcs:
+                plate_solve_astap(path, astap_exe)
+
+            hdul = fits.open(path)
+            data = hdul[0].data.astype(np.float32)
+            header = hdul[0].header
+            hdul.close()
+
+            if master_bias is not None:
+                data -= master_bias
+            if master_dark is not None:
+                data -= master_dark
+            if master_flat is not None and np.all(master_flat != 0):
+                data /= master_flat
+
+            wcs = WCS(header) if "CRVAL1" in header and "CRVAL2" in header else None
+            return (data, file, wcs)
+        except:
+            return None
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(filter(None, executor.map(load_fits_file, fits_files)))
+
+    if not results:
+        return np.array([]), [], []
+
+    frames, filenames, wcs_objects = zip(*results)
+    return np.array(frames), list(filenames), list(wcs_objects)
+
     """
     Load and optionally calibrate a stack of FITS files
 
@@ -174,6 +224,7 @@ def load_fits_stack(
     return np.array(frames), filenames, wcs_objects
 
 
+
 def detect_transients(
     frames,
     filenames,
@@ -184,7 +235,49 @@ def detect_transients(
     edge_margin=20,
     detect_dimming=False,
 ):
-    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    if len(frames) == 0:
+        print("No frames loaded.")
+        return []
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Analyzing {len(frames)} frames for transients...")
+    mean_image = np.mean(frames, axis=0)
+    std_image = np.std(frames, axis=0)
+
+    def process_single_frame(i):
+        frame = frames[i]
+        z = (frame - mean_image) / (std_image + 1e-5)
+        y, x = np.unravel_index(np.argmax(np.abs(z)), z.shape)
+        value = z[y, x]
+        if abs(value) > z_thresh and edge_margin < x < z.shape[1] - edge_margin and edge_margin < y < z.shape[0] - edge_margin:
+            wcs = wcs_objects[i]
+            ra_deg, dec_deg = (None, None)
+            if wcs and wcs.has_celestial:
+                try:
+                    ra_deg, dec_deg = wcs.wcs_pix2world([[x, y]], 0)[0]
+                except:
+                    pass
+            return {
+                "frame": i,
+                "filename": filenames[i],
+                "x": int(x),
+                "y": int(y),
+                "z_score": float(value),
+                "confidence": float(min(1.0, abs(value) / z_thresh)),
+                "dimming": bool(value < 0 and detect_dimming),
+                "ra_deg": float(ra_deg) if ra_deg else None,
+                "dec_deg": float(dec_deg) if dec_deg else None
+            }
+        return None
+
+    with ThreadPoolExecutor() as executor:
+        detections = list(filter(None, executor.map(process_single_frame, range(len(frames)))))
+
+    return detections
+    """""
     Detect transient objects in a stack of astronomical images
 
     Args:

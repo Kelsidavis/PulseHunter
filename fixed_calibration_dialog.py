@@ -100,71 +100,58 @@ class CalibrationWorker(QThread):
         self.is_cancelled = False
         self.master_files = {}
 
-    def run(self):
-        """Main processing function"""
-        try:
-            self.status_updated.emit("Starting calibration processing...")
-            self.log_updated.emit("Beginning calibration file creation...")
+    
+def run(self):
+    from concurrent.futures import ThreadPoolExecutor
 
-            total_tasks = len(
-                [task for task in self.calibration_tasks if task["enabled"]]
-            )
-            completed_tasks = 0
+    try:
+        self.status_updated.emit("Starting calibration processing...")
+        self.log_updated.emit("Beginning calibration file creation...")
 
-            for task in self.calibration_tasks:
-                if not task["enabled"] or self.is_cancelled:
-                    continue
+        enabled_tasks = [task for task in self.calibration_tasks if task["enabled"]]
+        total_tasks = len(enabled_tasks)
+        completed_tasks = 0
 
-                cal_type = task["type"]
-                input_folder = task["folder"]
+        def process_task(task):
+            nonlocal completed_tasks
+            cal_type = task["type"]
+            input_folder = task["folder"]
+            self.status_updated.emit(f"Processing {cal_type} frames...")
+            self.log_updated.emit(f"Creating master {cal_type} from {input_folder}")
+            output_file = self.output_folder / f"master_{cal_type}.fits"
+            processor = CalibrationProcessor()
+            input_files = list(Path(input_folder).glob("*.fit*"))
 
-                self.status_updated.emit(f"Processing {cal_type} frames...")
-                self.log_updated.emit(f"Creating master {cal_type} from {input_folder}")
+            if not input_files:
+                self.log_updated.emit(f"No FITS files found in {input_folder}")
+                return
 
-                # Create master file
-                output_file = self.output_folder / f"master_{cal_type}.fits"
+            def progress_callback(value):
+                overall_progress = int((completed_tasks / total_tasks) * 100 + (value / total_tasks))
+                self.progress_updated.emit(overall_progress)
 
-                processor = CalibrationProcessor()
-                input_files = list(Path(input_folder).glob("*.fit*"))
+            success = processor.create_master_calibration(input_files, output_file, cal_type, progress_callback)
 
-                if not input_files:
-                    self.log_updated.emit(f"No FITS files found in {input_folder}")
-                    continue
+            if success:
+                self.master_files[cal_type] = str(output_file)
+                self.log_updated.emit(f"✅ Master {cal_type} created: {output_file.name}")
+            else:
+                self.log_updated.emit(f"❌ Failed to create master {cal_type}")
+            completed_tasks += 1
 
-                def progress_callback(value):
-                    overall_progress = int(
-                        (completed_tasks / total_tasks) * 100 + (value / total_tasks)
-                    )
-                    self.progress_updated.emit(overall_progress)
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            executor.map(process_task, enabled_tasks)
 
-                success = processor.create_master_calibration(
-                    input_files, output_file, cal_type, progress_callback
-                )
+        self.progress_updated.emit(100)
+        self.status_updated.emit("Calibration processing completed!")
+        message = f"Created {len(self.master_files)} master calibration files"
+        self.finished.emit(True, message, self.master_files)
 
-                if success:
-                    self.master_files[cal_type] = str(output_file)
-                    self.log_updated.emit(
-                        f"✅ Master {cal_type} created: {output_file.name}"
-                    )
-                else:
-                    self.log_updated.emit(f"❌ Failed to create master {cal_type}")
-
-                completed_tasks += 1
-
-            self.progress_updated.emit(100)
-            self.status_updated.emit("Calibration processing completed!")
-
-            message = f"Created {len(self.master_files)} master calibration files"
-            self.finished.emit(True, message, self.master_files)
-
-        except Exception as e:
-            error_msg = f"Calibration processing error: {str(e)}"
-            self.log_updated.emit(f"ERROR: {error_msg}")
-            self.finished.emit(False, error_msg, {})
-
-    def cancel(self):
-        self.is_cancelled = True
-
+    except Exception as e:
+        error_msg = f"Calibration processing error: {str(e)}"
+        self.log_updated.emit(f"ERROR: {error_msg}")
+        self.finished.emit(False, error_msg, {})
+    
 
 class FixedCalibrationDialog(QDialog):
     """Fixed calibration dialog with lights folder selection and automatic master usage"""
