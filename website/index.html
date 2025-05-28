@@ -724,7 +724,7 @@
         </p>
 <div class="sky-map-container">
     <canvas id="skymap-canvas"></canvas>
-    
+
     <div class="skymap-controls">
         <div class="control-group">
             <div class="control-title">Navigation</div>
@@ -732,7 +732,7 @@
             <button class="btn" onclick="skyMap.zoomOut()">🔍 Zoom Out</button>
             <button class="btn btn-secondary" onclick="skyMap.resetView()">🎯 Reset</button>
         </div>
-        
+
         <div class="control-group">
             <div class="control-title">Filters</div>
             <select id="confidence-filter" onchange="skyMap.applyFilters()">
@@ -750,13 +750,13 @@
             </select>
         </div>
     </div>
-    
+
     <div class="skymap-info">
         <div class="coords-display" id="coords-display">
             RA: 000.000°<br>
             DEC: +00.000°
         </div>
-        
+
         <div class="skymap-legend">
             <div class="skymap-legend-title">Stars</div>
             <div class="skymap-legend-item">
@@ -791,11 +791,11 @@
             </div>
         </div>
     </div>
-    
+
     <div class="zoom-indicator" id="zoom-indicator">
         Zoom: 1.0x • FOV: 180°
     </div>
-    
+
     <div class="skymap-loading" id="skymap-loading">
         <div class="skymap-spinner"></div>
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Loading Star Catalog</div>
@@ -915,76 +915,76 @@
             constructor() {
                 this.canvas = document.getElementById('skymap-canvas');
                 this.ctx = this.canvas.getContext('2d');
-                
+
                 // Data arrays
                 this.detections = [];
                 this.filteredDetections = [];
                 this.stars = [];
                 this.brightStars = [];
-                
+
                 // View parameters
                 this.centerRA = 180;
                 this.centerDec = 0;
                 this.zoom = 1.0;
                 this.minZoom = 0.2;
                 this.maxZoom = 10.0;
-                
+
                 // Interaction state
                 this.isDragging = false;
                 this.lastMouseX = 0;
                 this.lastMouseY = 0;
                 this.hoveredObject = null;
-                
+
                 // Display settings
                 this.gridSpacing = 30;
                 this.detectionRadius = 4;
-                
+
                 this.init();
             }
-            
+
             async init() {
                 console.log('🚀 Initializing Homepage Sky Map...');
-                
+
                 try {
                     this.setupCanvas();
                     this.setupEventListeners();
-                    
+
                     await this.loadStarCatalog();
                     await this.loadDetectionData();
-                    
+
                     this.applyFilters();
                     this.updateStatistics();
                     this.hideLoading();
                     this.render();
-                    
+
                     console.log('✅ Sky map initialized successfully');
-                    
+
                 } catch (error) {
                     console.error('❌ Failed to initialize sky map:', error);
                     this.showError(error.message);
                 }
             }
-            
+
             setupCanvas() {
                 const resizeCanvas = () => {
                     const rect = this.canvas.getBoundingClientRect();
                     const dpr = window.devicePixelRatio || 1;
-                    
+
                     this.canvas.width = rect.width * dpr;
                     this.canvas.height = rect.height * dpr;
                     this.ctx.scale(dpr, dpr);
-                    
+
                     this.canvas.style.width = rect.width + 'px';
                     this.canvas.style.height = rect.height + 'px';
                 };
-                
+
                 resizeCanvas();
                 window.addEventListener('resize', () => {
                     resizeCanvas();
                     this.render();
                 });
             }
-            
+
             setupEventListeners() {
                 // Mouse events
                 this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
@@ -993,16 +993,16 @@
                 this.canvas.addEventListener('mouseleave', this.onMouseUp.bind(this));
                 this.canvas.addEventListener('wheel', this.onWheel.bind(this));
                 this.canvas.addEventListener('click', this.onClick.bind(this));
-                
+
                 // Touch events
                 this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
                 this.canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
                 this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
             }
-            
+
             async loadStarCatalog() {
                 console.log('📚 Loading built-in star catalog...');
-                
+
                 this.brightStars = [
                     // Major bright stars with accurate positions
                     { ra: 101.287, dec: -16.716, magnitude: -1.46, name: "Sirius", color: "#9bb0ff", spectralType: "A1V" },
@@ -1024,7 +1024,7 @@
                     { ra: 310.358, dec: 45.280, magnitude: 1.25, name: "Deneb", color: "#fff4ea", spectralType: "A2Ia" },
                     { ra: 152.093, dec: 11.967, magnitude: 1.40, name: "Regulus", color: "#9bb0ff", spectralType: "B7V" },
                     { ra: 37.740, dec: 89.264, magnitude: 1.98, name: "Polaris", color: "#fff4ea", spectralType: "F7Ib" },
-                    
+
                     // Big Dipper
                     { ra: 165.460, dec: 61.751, magnitude: 1.79, name: "Dubhe", color: "#ff7f00", spectralType: "K0III" },
                     { ra: 183.856, dec: 57.032, magnitude: 2.37, name: "Merak", color: "#fff4ea", spectralType: "A1V" },
@@ -1032,7 +1032,7 @@
                     { ra: 193.507, dec: 55.960, magnitude: 1.86, name: "Alioth", color: "#fff4ea", spectralType: "A1III" },
                     { ra: 210.042, dec: 54.061, magnitude: 2.23, name: "Mizar", color: "#fff4ea", spectralType: "A2V" },
                     { ra: 230.182, dec: 49.313, magnitude: 1.85, name: "Alkaid", color: "#9bb0ff", spectralType: "B3V" },
-                    
+
                     // Orion
                     { ra: 83.002, dec: 22.514, magnitude: 1.64, name: "Bellatrix", color: "#9bb0ff", spectralType: "B2III" },
                     { ra: 84.053, dec: -1.202, magnitude: 1.77, name: "Alnilam", color: "#9bb0ff", spectralType: "B0Ia" },
@@ -1040,7 +1040,7 @@
                     { ra: 81.573, dec: -0.299, magnitude: 2.23, name: "Mintaka", color: "#9bb0ff", spectralType: "O9.5II" },
                     { ra: 90.579, dec: -9.670, magnitude: 2.06, name: "Saiph", color: "#9bb0ff", spectralType: "B0.5V" }
                 ];
-                
+
                 // Add medium brightness stars for context
                 this.stars = [];
                 for (let i = 0; i < 400; i++) {
@@ -1054,11 +1054,11 @@
                     });
                 }
             }
-            
+
             getRandomStarColor() {
                 const colors = ['#9bb0ff', '#fff4ea', '#fff2d5', '#ff7f00', '#ff4444'];
                 const weights = [0.1, 0.3, 0.3, 0.2, 0.1];
-                
+
                 const rand = Math.random();
                 let sum = 0;
                 for (let i = 0; i < weights.length; i++) {
@@ -1067,10 +1067,10 @@
                 }
                 return colors[colors.length - 1];
             }
-            
+
             async loadDetectionData() {
                 console.log('🔍 Loading detection data...');
-                
+
                 try {
                     this.detections = await this.fetchPulseHunterData();
                     console.log(`✅ Loaded ${this.detections.length} detections`);
@@ -1079,43 +1079,43 @@
                     this.detections = this.generateSampleDetections();
                 }
             }
-            
+
             async fetchPulseHunterData() {
                 const response = await fetch('reports/');
                 if (!response.ok) throw new Error('Failed to fetch reports');
-                
+
                 const text = await response.text();
                 const files = [...text.matchAll(/href="(report_.*?\.json)"/g)].map(m => m[1]);
-                
+
                 const allDetections = [];
                 for (const file of files.slice(0, 8)) { // Limit for homepage performance
                     try {
                         const reportResponse = await fetch(`reports/${file}`);
                         if (!reportResponse.ok) continue;
-                        
+
                         const json = await reportResponse.json();
                         const detections = json.detections || [];
-                        
-                        allDetections.push(...detections.filter(det => 
-                            det.ra_deg && det.dec_deg && 
+
+                        allDetections.push(...detections.filter(det =>
+                            det.ra_deg && det.dec_deg &&
                             !isNaN(det.ra_deg) && !isNaN(det.dec_deg) &&
                             det.ra_deg >= 0 && det.ra_deg <= 360 &&
                             det.dec_deg >= -90 && det.dec_deg <= 90
                         ));
-                        
+
                         if (allDetections.length > 500) break; // Limit for homepage
                     } catch (error) {
                         console.warn(`Failed to load ${file}:`, error);
                     }
                 }
-                
+
                 return allDetections;
             }
-            
+
             generateSampleDetections() {
                 const detections = [];
                 const observerNames = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank'];
-                
+
                 for (let i = 0; i < 80; i++) {
                     detections.push({
                         ra_deg: Math.random() * 360,
@@ -1125,54 +1125,54 @@
                         timestamp_utc: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString(),
                         dimming: Math.random() > 0.4,
                         match_name: Math.random() > 0.7 ? `HD ${Math.floor(Math.random() * 200000)}` : null,
-                        exo_match: Math.random() > 0.93 ? { 
-                            planet: `${['Kepler', 'TOI', 'WASP'][Math.floor(Math.random() * 3)]}-${Math.floor(Math.random() * 1000)}b` 
+                        exo_match: Math.random() > 0.93 ? {
+                            planet: `${['Kepler', 'TOI', 'WASP'][Math.floor(Math.random() * 3)]}-${Math.floor(Math.random() * 1000)}b`
                         } : null
                     });
                 }
-                
+
                 return detections;
             }
-            
+
             // Coordinate transformations
             raDecToCanvas(ra, dec) {
                 const rect = this.canvas.getBoundingClientRect();
                 const centerX = rect.width / 2;
                 const centerY = rect.height / 2;
-                
+
                 const deltaRA = (ra - this.centerRA);
                 const deltaDec = dec - this.centerDec;
-                
+
                 const x = centerX + (deltaRA * Math.cos(dec * Math.PI / 180) * this.zoom * 1.2);
                 const y = centerY - (deltaDec * this.zoom * 2.5);
-                
+
                 return { x, y };
             }
-            
+
             canvasToRaDec(x, y) {
                 const rect = this.canvas.getBoundingClientRect();
                 const centerX = rect.width / 2;
                 const centerY = rect.height / 2;
-                
+
                 const deltaX = (x - centerX) / (this.zoom * 1.2);
                 const deltaY = -(y - centerY) / (this.zoom * 2.5);
-                
+
                 const dec = Math.max(-90, Math.min(90, this.centerDec + deltaY));
                 const ra = this.centerRA + deltaX / Math.cos(dec * Math.PI / 180);
-                
-                return { 
-                    ra: ((ra % 360) + 360) % 360, 
-                    dec: dec 
+
+                return {
+                    ra: ((ra % 360) + 360) % 360,
+                    dec: dec
                 };
             }
-            
+
             applyFilters() {
                 const confidenceFilter = parseFloat(document.getElementById('confidence-filter').value) / 100;
                 const typeFilter = document.getElementById('type-filter').value;
-                
+
                 this.filteredDetections = this.detections.filter(det => {
                     if ((det.confidence || 0) < confidenceFilter) return false;
-                    
+
                     switch (typeFilter) {
                         case 'dimming': return det.dimming;
                         case 'brightening': return !det.dimming;
@@ -1180,28 +1180,28 @@
                         default: return true;
                     }
                 });
-                
+
                 this.updateStatistics();
                 this.render();
             }
-            
+
             render() {
                 const rect = this.canvas.getBoundingClientRect();
                 this.ctx.clearRect(0, 0, rect.width, rect.height);
-                
+
                 this.drawGrid();
                 this.drawStars();
                 this.drawDetections();
                 this.updateZoomIndicator();
             }
-            
+
             drawGrid() {
                 const rect = this.canvas.getBoundingClientRect();
                 const gridSpacing = Math.max(10, this.gridSpacing / this.zoom);
-                
+
                 this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
                 this.ctx.lineWidth = 0.5;
-                
+
                 // RA lines
                 for (let ra = 0; ra <= 360; ra += gridSpacing) {
                     const pos = this.raDecToCanvas(ra, 0);
@@ -1212,7 +1212,7 @@
                         this.ctx.stroke();
                     }
                 }
-                
+
                 // Dec lines
                 for (let dec = -90; dec <= 90; dec += gridSpacing) {
                     const pos = this.raDecToCanvas(0, dec);
@@ -1224,58 +1224,58 @@
                     }
                 }
             }
-            
+
             drawStars() {
                 // Background stars
                 this.ctx.globalAlpha = 0.5;
                 this.stars.forEach(star => {
                     if (star.magnitude <= 6) this.drawStar(star, false);
                 });
-                
+
                 // Bright stars
                 this.ctx.globalAlpha = 1.0;
                 this.brightStars.forEach(star => {
                     this.drawStar(star, true);
                 });
             }
-            
+
             drawStar(star, showName) {
                 const pos = this.raDecToCanvas(star.ra, star.dec);
                 const rect = this.canvas.getBoundingClientRect();
-                
-                if (pos.x < -50 || pos.x > rect.width + 50 || 
+
+                if (pos.x < -50 || pos.x > rect.width + 50 ||
                     pos.y < -50 || pos.y > rect.height + 50) return;
-                
+
                 const baseSize = Math.max(0.3, 4 - star.magnitude);
                 let size = baseSize * Math.min(1.5, Math.sqrt(this.zoom * 0.8));
-                
+
                 if (size < 0.5) return;
-                
+
                 if (star === this.hoveredObject) size *= 1.3;
-                
+
                 this.ctx.fillStyle = star.color;
                 this.ctx.beginPath();
                 this.ctx.arc(pos.x, pos.y, size, 0, 2 * Math.PI);
                 this.ctx.fill();
-                
+
                 if (showName && star.name && this.zoom > 2 && star.magnitude < 2) {
                     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                     this.ctx.font = `${Math.min(12, 8 * this.zoom)}px Inter`;
                     this.ctx.fillText(star.name, pos.x + size + 3, pos.y - 1);
                 }
             }
-            
+
             drawDetections() {
                 this.filteredDetections.forEach(detection => {
                     const pos = this.raDecToCanvas(detection.ra_deg, detection.dec_deg);
                     const rect = this.canvas.getBoundingClientRect();
-                    
-                    if (pos.x < -20 || pos.x > rect.width + 20 || 
+
+                    if (pos.x < -20 || pos.x > rect.width + 20 ||
                         pos.y < -20 || pos.y > rect.height + 20) return;
-                    
+
                     let radius = this.detectionRadius;
                     let color = this.getDetectionColor(detection);
-                    
+
                     if (detection === this.hoveredObject) {
                         radius *= 1.4;
                         this.ctx.strokeStyle = '#ffffff';
@@ -1284,12 +1284,12 @@
                         this.ctx.arc(pos.x, pos.y, radius + 2, 0, 2 * Math.PI);
                         this.ctx.stroke();
                     }
-                    
+
                     this.ctx.fillStyle = color;
                     this.ctx.beginPath();
                     this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
                     this.ctx.fill();
-                    
+
                     if (detection.exo_match) {
                         this.ctx.strokeStyle = '#8a2be2';
                         this.ctx.lineWidth = 1;
@@ -1299,40 +1299,40 @@
                     }
                 });
             }
-            
+
             getDetectionColor(detection) {
                 if (detection.exo_match) return '#8a2be2';
-                
+
                 const confidence = detection.confidence || 0;
                 if (confidence >= 0.8) return '#00c851';
                 if (confidence >= 0.5) return '#ffbb33';
                 return '#ff4444';
             }
-            
+
             findObjectAtPoint(x, y) {
                 const threshold = 12;
-                
+
                 for (const detection of this.filteredDetections) {
                     const pos = this.raDecToCanvas(detection.ra_deg, detection.dec_deg);
                     const distance = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-                    
+
                     if (distance <= threshold) {
                         return { type: 'detection', data: detection };
                     }
                 }
-                
+
                 for (const star of this.brightStars) {
                     const pos = this.raDecToCanvas(star.ra, star.dec);
                     const distance = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-                    
+
                     if (distance <= threshold) {
                         return { type: 'star', data: star };
                     }
                 }
-                
+
                 return null;
             }
-            
+
             // Event handlers
             onMouseDown(e) {
                 this.isDragging = true;
@@ -1340,36 +1340,36 @@
                 this.lastMouseY = e.clientY;
                 this.canvas.style.cursor = 'grabbing';
             }
-            
+
             onMouseMove(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
+
                 const coords = this.canvasToRaDec(x, y);
                 const raStr = coords.ra.toFixed(3).padStart(7, '0');
                 const decStr = (coords.dec >= 0 ? '+' : '') + coords.dec.toFixed(3).padStart(6, '0');
-                document.getElementById('coords-display').innerHTML = 
+                document.getElementById('coords-display').innerHTML =
                     `RA: ${raStr}°<br>DEC: ${decStr}°`;
-                
+
                 if (this.isDragging) {
                     const deltaX = e.clientX - this.lastMouseX;
                     const deltaY = e.clientY - this.lastMouseY;
-                    
+
                     this.centerRA -= deltaX / (this.zoom * 1.2);
                     this.centerDec += deltaY / (this.zoom * 2.5);
-                    
+
                     this.centerRA = ((this.centerRA % 360) + 360) % 360;
                     this.centerDec = Math.max(-90, Math.min(90, this.centerDec));
-                    
+
                     this.lastMouseX = e.clientX;
                     this.lastMouseY = e.clientY;
-                    
+
                     this.render();
                 } else {
                     const objectResult = this.findObjectAtPoint(x, y);
                     const newHovered = objectResult ? objectResult.data : null;
-                    
+
                     if (newHovered !== this.hoveredObject) {
                         this.hoveredObject = newHovered;
                         this.canvas.style.cursor = newHovered ? 'pointer' : 'grab';
@@ -1377,31 +1377,31 @@
                     }
                 }
             }
-            
+
             onMouseUp(e) {
                 this.isDragging = false;
                 this.canvas.style.cursor = this.hoveredObject ? 'pointer' : 'grab';
             }
-            
+
             onWheel(e) {
                 e.preventDefault();
-                
+
                 const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
                 const newZoom = this.zoom * zoomFactor;
-                
+
                 if (newZoom >= this.minZoom && newZoom <= this.maxZoom) {
                     this.zoom = newZoom;
                     this.render();
                 }
             }
-            
+
             onClick(e) {
                 if (this.isDragging) return;
-                
+
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
+
                 const objectResult = this.findObjectAtPoint(x, y);
                 if (objectResult) {
                     if (objectResult.type === 'detection') {
@@ -1413,42 +1413,42 @@
                     this.hidePopups();
                 }
             }
-            
+
             // Touch events
             onTouchStart(e) {
                 if (e.touches.length === 1) {
-                    this.onMouseDown({ 
-                        clientX: e.touches[0].clientX, 
-                        clientY: e.touches[0].clientY 
+                    this.onMouseDown({
+                        clientX: e.touches[0].clientX,
+                        clientY: e.touches[0].clientY
                     });
                 }
             }
-            
+
             onTouchMove(e) {
                 if (e.touches.length === 1) {
-                    this.onMouseMove({ 
-                        clientX: e.touches[0].clientX, 
-                        clientY: e.touches[0].clientY 
+                    this.onMouseMove({
+                        clientX: e.touches[0].clientX,
+                        clientY: e.touches[0].clientY
                     });
                 }
                 e.preventDefault();
             }
-            
+
             onTouchEnd(e) {
                 this.onMouseUp(e);
             }
-            
+
             showDetectionPopup(detection, x, y) {
                 this.hidePopups();
-                
+
                 const popup = document.createElement('div');
                 popup.className = 'object-popup';
                 popup.id = 'object-popup';
-                
+
                 const confidence = ((detection.confidence || 0) * 100).toFixed(1);
-                const date = detection.timestamp_utc ? 
+                const date = detection.timestamp_utc ?
                     new Date(detection.timestamp_utc).toLocaleDateString() : 'Unknown';
-                
+
                 popup.innerHTML = `
                     <div class="popup-title">🔍 Detection</div>
                     <div class="popup-detail"><strong>Observer:</strong> ${detection.observer || 'Unknown'}</div>
@@ -1460,21 +1460,21 @@
                     ${detection.exo_match ? `<div class="popup-detail"><strong>🪐 Exoplanet:</strong> ${detection.exo_match.planet}</div>` : ''}
                     ${detection.match_name ? `<div class="popup-detail"><strong>Match:</strong> ${detection.match_name}</div>` : ''}
                 `;
-                
+
                 popup.style.left = Math.min(x + 10, window.innerWidth - 280) + 'px';
                 popup.style.top = Math.max(10, y - 10) + 'px';
-                
+
                 document.body.appendChild(popup);
                 setTimeout(() => this.hidePopups(), 6000);
             }
-            
+
             showStarPopup(star, x, y) {
                 this.hidePopups();
-                
+
                 const popup = document.createElement('div');
                 popup.className = 'object-popup';
                 popup.id = 'object-popup';
-                
+
                 popup.innerHTML = `
                     <div class="popup-title">⭐ ${star.name || 'Star'}</div>
                     <div class="popup-detail"><strong>RA:</strong> ${star.ra.toFixed(4)}°</div>
@@ -1482,19 +1482,19 @@
                     <div class="popup-detail"><strong>Magnitude:</strong> ${star.magnitude.toFixed(2)}</div>
                     <div class="popup-detail"><strong>Spectral Type:</strong> ${star.spectralType || 'Unknown'}</div>
                 `;
-                
+
                 popup.style.left = Math.min(x + 10, window.innerWidth - 280) + 'px';
                 popup.style.top = Math.max(10, y - 10) + 'px';
-                
+
                 document.body.appendChild(popup);
                 setTimeout(() => this.hidePopups(), 4000);
             }
-            
+
             hidePopups() {
                 const popup = document.getElementById('object-popup');
                 if (popup) popup.remove();
             }
-            
+
             // Public methods for UI controls
             zoomIn() {
                 if (this.zoom < this.maxZoom) {
@@ -1502,21 +1502,21 @@
                     this.render();
                 }
             }
-            
+
             zoomOut() {
                 if (this.zoom > this.minZoom) {
                     this.zoom /= 1.4;
                     this.render();
                 }
             }
-            
+
             resetView() {
                 this.centerRA = 180;
                 this.centerDec = 0;
                 this.zoom = 1.0;
                 this.render();
             }
-            
+
             updateStatistics() {
                 const totalDetections = this.detections.length;
                 const observers = new Set(this.detections.map(d => d.observer)).size;
@@ -1527,18 +1527,18 @@
                 this.animateCounter('active-observers', observers);
                 this.animateCounter('exoplanet-candidates', exoplanetCandidates);
                 this.animateCounter('high-confidence', highConfidence);
-                
+
                 this.populateTable();
             }
-            
+
             populateTable() {
                 const tbody = document.querySelector('#detectionTable tbody');
                 if (!tbody) return;
-                
+
                 tbody.innerHTML = '';
-                
+
                 const sortedDetections = [...this.detections].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-                
+
                 sortedDetections.slice(0, 20).forEach(detection => {
                     const row = document.createElement('tr');
                     const confidence = (detection.confidence || 0) * 100;
@@ -1559,13 +1559,13 @@
                     tbody.appendChild(row);
                 });
             }
-            
+
             getConfidenceColor(confidence) {
                 if (confidence >= 80) return '#00c851';
                 if (confidence >= 50) return '#ffbb33';
                 return '#ff4444';
             }
-            
+
             animateCounter(id, target) {
                 const element = document.getElementById(id);
                 let current = 0;
@@ -1579,17 +1579,17 @@
                     element.textContent = current.toLocaleString();
                 }, 50);
             }
-            
+
             updateZoomIndicator() {
                 const fov = (180 / this.zoom).toFixed(1);
-                document.getElementById('zoom-indicator').textContent = 
+                document.getElementById('zoom-indicator').textContent =
                     `Zoom: ${this.zoom.toFixed(1)}x • FOV: ${fov}°`;
             }
-            
+
             hideLoading() {
                 document.getElementById('skymap-loading').style.display = 'none';
             }
-            
+
             showError(message) {
                 const container = document.querySelector('.sky-map-container');
                 const errorDiv = document.createElement('div');
@@ -1604,7 +1604,7 @@
                 this.hideLoading();
             }
         }
-        
+
         // Initialize when page loads
         let skyMap;
         document.addEventListener('DOMContentLoaded', () => {

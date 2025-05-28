@@ -1,3 +1,20 @@
+
+function formatRaHms(raDeg) {
+  const hours = raDeg / 15;
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  const s = (((hours - h) * 60 - m) * 60).toFixed(1);
+  return `${h}h ${m}m ${s}s`;
+}
+
+function formatDecDms(decDeg) {
+  const sign = decDeg >= 0 ? '+' : '−';
+  const abs = Math.abs(decDeg);
+  const d = Math.floor(abs);
+  const m = Math.floor((abs - d) * 60);
+  const s = (((abs - d) * 60 - m) * 60).toFixed(1);
+  return `${sign}${d}° ${m}' ${s}"`;
+}
 function waitForAladin(timeout = 5000) {
     return new Promise((resolve, reject) => {
         const start = Date.now();
@@ -20,6 +37,22 @@ function waitForAladin(timeout = 5000) {
  */
 
 class PulseHunterViewer {
+formatRaHms(raDeg) {
+        const ra = raDeg / 15;
+        const h = Math.floor(ra);
+        const m = Math.floor((ra - h) * 60);
+        const s = (((ra - h) * 60 - m) * 60).toFixed(1);
+        return `${h}h ${m}m ${s}s`;
+    }
+
+    formatDecDms(decDeg) {
+        const sign = decDeg >= 0 ? '+' : '−';
+        const abs = Math.abs(decDeg);
+        const d = Math.floor(abs);
+        const m = Math.floor((abs - d) * 60);
+        const s = (((abs - d) * 60 - m) * 60).toFixed(1);
+        return `${sign}${d}° ${m}' ${s}"`;
+    }
     constructor() {
         this.cache = new Map();
         this.detections = [];
@@ -374,6 +407,8 @@ class PulseHunterViewer {
 
     formatPopupDescription(detection) {
         const lines = [];
+        lines.push(`RA: ${this.formatRaHms(detection.ra_deg)}<br>DEC: ${this.formatDecDms(detection.dec_deg)}`);
+
 
         if (detection.confidence) {
             lines.push(`Confidence: ${(detection.confidence * 100).toFixed(1)}%`);
@@ -468,7 +503,7 @@ class PulseHunterViewer {
         const confidence = (detection.confidence || 0) * 100;
         const confidenceColor = this.getConfidenceColor(confidence);
 
-        const coords = `${detection.ra_deg.toFixed(4)}°, ${detection.dec_deg.toFixed(4)}°`;
+        const coords = `RA: ${this.formatRaHms(detection.ra_deg)}, DEC: ${this.formatDecDms(detection.dec_deg)}`;
         const date = detection.timestamp_utc ?
             new Date(detection.timestamp_utc).toLocaleDateString() : 'Unknown';
         const observer = detection.observer || 'Unknown';
@@ -833,15 +868,15 @@ function createDebugOverlay() {
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", function () {
     console.log('🌟 Starting PulseHunter Detection Viewer');
-    
+
     waitForAladin().then(() => {
         window.viewer = new PulseHunterViewer();
-        
+
         // Add debug access
         window.debugViewer = () => window.viewer.debug();
     }).catch(err => {
         console.error("❌ Aladin initialization failed:", err);
-        
+
         // Try to initialize without Aladin for debugging
         console.log('🔧 Attempting to initialize without Aladin...');
         window.viewer = new PulseHunterViewer();

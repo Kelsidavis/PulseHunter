@@ -4,37 +4,66 @@ Handles creation of master calibration files and ASTAP configuration
 With collapsible ASTAP section and improved UI
 """
 
+import logging
 import os
 import sys
-from pathlib import Path
-from PyQt6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout, 
-                             QGridLayout, QLabel, QPushButton, QFileDialog, 
-                             QLineEdit, QProgressBar, QTextEdit, QGroupBox, 
-                             QComboBox, QCheckBox, QMessageBox, QTabWidget, 
-                             QWidget, QSplitter, QFrame, QToolButton, QSizePolicy)
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QSettings, QRect, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QIcon, QFont
-from PyQt6.QtWidgets import QDialog
 import threading
 import time
-import logging
-from calibration_utilities import CalibrationConfig, ASTAPManager, CalibrationLogger
+from pathlib import Path
+
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QPropertyAnimation,
+    QRect,
+    QSettings,
+    QThread,
+    QTimer,
+    pyqtSignal,
+)
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSizePolicy,
+    QSplitter,
+    QTabWidget,
+    QTextEdit,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from calibration_utilities import ASTAPManager, CalibrationConfig, CalibrationLogger
+
 
 class CollapsibleGroupBox(QGroupBox):
     """A collapsible group box widget"""
-    
+
     def __init__(self, title="", parent=None):
         super().__init__(title, parent)
         self.is_collapsed = False
         self.setup_ui()
-        
+
     def setup_ui(self):
         # Create toggle button
         self.toggle_button = QToolButton()
         self.toggle_button.setText("▼")  # Down arrow when expanded
         self.toggle_button.setCheckable(True)
         self.toggle_button.setChecked(False)
-        self.toggle_button.setStyleSheet("""
+        self.toggle_button.setStyleSheet(
+            """
             QToolButton {
                 background: transparent;
                 border: none;
@@ -46,13 +75,14 @@ class CollapsibleGroupBox(QGroupBox):
             QToolButton:hover {
                 color: #63b3ed;
             }
-        """)
+        """
+        )
         self.toggle_button.clicked.connect(self.toggle_collapsed)
-        
+
         # Store the original content widget
         self.content_widget = QWidget()
         self.original_layout = self.layout()
-        
+
     def setContentLayout(self, layout):
         """Set the layout for the collapsible content"""
         if self.original_layout:
@@ -61,39 +91,43 @@ class CollapsibleGroupBox(QGroupBox):
                 child = self.original_layout.takeAt(0)
                 if child.widget():
                     child.widget().setParent(None)
-        
+
         # Create new main layout
         main_layout = QVBoxLayout(self)
-        
+
         # Header with toggle button and title
         header_layout = QHBoxLayout()
         header_layout.addWidget(self.toggle_button)
-        
+
         title_label = QLabel(self.title())
-        title_label.setStyleSheet("""
+        title_label.setStyleSheet(
+            """
             QLabel {
                 color: #4299e1;
                 font-size: 14px;
                 font-weight: 700;
                 padding: 4px 8px;
             }
-        """)
+        """
+        )
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
+
         main_layout.addLayout(header_layout)
-        
+
         # Content widget
         self.content_widget.setLayout(layout)
         main_layout.addWidget(self.content_widget)
-        
+
         # Set size policy
-        self.content_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
-        
+        self.content_widget.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
+        )
+
     def toggle_collapsed(self):
         """Toggle the collapsed state"""
         self.is_collapsed = not self.is_collapsed
-        
+
         if self.is_collapsed:
             self.content_widget.hide()
             self.toggle_button.setText("▶")  # Right arrow when collapsed
@@ -102,29 +136,31 @@ class CollapsibleGroupBox(QGroupBox):
             self.content_widget.show()
             self.toggle_button.setText("▼")  # Down arrow when expanded
             self.toggle_button.setToolTip("Click to collapse ASTAP configuration")
-            
+
         # Trigger resize
         self.updateGeometry()
         if self.parent():
             self.parent().adjustSize()
-            
+
     def collapse(self, animated=False):
         """Collapse the group box"""
         if not self.is_collapsed:
             self.toggle_collapsed()
-            
+
     def expand(self, animated=False):
         """Expand the group box"""
         if self.is_collapsed:
             self.toggle_collapsed()
 
+
 class CalibrationWorker(QThread):
     """Worker thread for calibration processing to avoid UI freezing"""
+
     progress_updated = pyqtSignal(int)
     status_updated = pyqtSignal(str)
     log_updated = pyqtSignal(str)
     finished = pyqtSignal(bool, str)  # success, message
-    
+
     def __init__(self, calibration_type, input_folder, output_folder, settings):
         super().__init__()
         self.calibration_type = calibration_type
@@ -132,31 +168,33 @@ class CalibrationWorker(QThread):
         self.output_folder = output_folder
         self.settings = settings
         self.is_cancelled = False
-        
+
     def run(self):
         try:
             self.create_master_calibration()
         except Exception as e:
             self.finished.emit(False, str(e))
-            
+
     def cancel(self):
         self.is_cancelled = True
-        
+
     def create_master_calibration(self):
         """Process calibration frames and create master files"""
-        self.status_updated.emit(f"Starting {self.calibration_type} calibration processing...")
+        self.status_updated.emit(
+            f"Starting {self.calibration_type} calibration processing..."
+        )
         self.log_updated.emit(f"Input folder: {self.input_folder}")
         self.log_updated.emit(f"Output folder: {self.output_folder}")
-        
+
         # Find FITS files
         fits_files = list(Path(self.input_folder).glob("*.fit*"))
         if not fits_files:
             self.finished.emit(False, "No FITS files found in selected folder")
             return
-            
+
         self.log_updated.emit(f"Found {len(fits_files)} FITS files")
         total_files = len(fits_files)
-        
+
         # Simulate processing steps (replace with actual FITS processing)
         processing_steps = [
             "Loading FITS files...",
@@ -164,17 +202,17 @@ class CalibrationWorker(QThread):
             "Validating exposure times...",
             "Computing statistics...",
             "Creating master frame...",
-            "Saving master calibration file..."
+            "Saving master calibration file...",
         ]
-        
+
         for i, step in enumerate(processing_steps):
             if self.is_cancelled:
                 self.finished.emit(False, "Processing cancelled by user")
                 return
-                
+
             self.status_updated.emit(step)
             self.log_updated.emit(f"Step {i+1}/{len(processing_steps)}: {step}")
-            
+
             # Simulate file processing
             if i == 0:  # Loading files
                 for j, fits_file in enumerate(fits_files):
@@ -189,114 +227,126 @@ class CalibrationWorker(QThread):
                 progress = 20 + (i * 13)  # Distribute remaining 80% across steps
                 self.progress_updated.emit(progress)
                 self.msleep(500)
-        
+
         # Create output filename
-        output_file = Path(self.output_folder) / f"master_{self.calibration_type.lower()}.fits"
+        output_file = (
+            Path(self.output_folder) / f"master_{self.calibration_type.lower()}.fits"
+        )
         self.log_updated.emit(f"Master file created: {output_file}")
-        
+
         self.progress_updated.emit(100)
         self.status_updated.emit("Calibration processing completed successfully!")
-        self.finished.emit(True, f"Master {self.calibration_type} calibration created successfully!")
+        self.finished.emit(
+            True, f"Master {self.calibration_type} calibration created successfully!"
+        )
+
 
 class CalibrationSetupDialog(QDialog):
     """Enhanced calibration setup dialog with collapsible ASTAP section"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.settings = QSettings('PulseHunter', 'CalibrationDialog')
+        self.settings = QSettings("PulseHunter", "CalibrationDialog")
         self.config = CalibrationConfig()
         self.astap_manager = ASTAPManager(self.config)
         self.logger = CalibrationLogger()
         self.worker = None
-        
+
         self.setup_ui()
         self.restore_geometry()
         self.load_settings()
-        
+
     def setup_ui(self):
         self.setWindowTitle("PulseHunter - Calibration Setup")
         self.setMinimumSize(800, 700)
-        
+
         # Main layout
         layout = QVBoxLayout(self)
-        
+
         # ASTAP Configuration section (now collapsible)
         self.setup_astap_section(layout)
-        
+
         # Create tab widget for different calibration types
         self.tab_widget = QTabWidget()
         layout.addWidget(self.tab_widget)
-        
+
         # Setup tabs
         self.setup_create_tab()
         self.setup_existing_tab()
-        
+
         # Progress and log section
         self.setup_progress_section(layout)
-        
+
         # Button section
         self.setup_buttons(layout)
-        
+
     def setup_astap_section(self, layout):
         """Setup collapsible ASTAP executable configuration section"""
         self.astap_group = CollapsibleGroupBox("ASTAP Plate Solving Configuration")
-        
+
         # Create the content layout
         astap_content_layout = QVBoxLayout()
-        
+
         # Info text
         info_label = QLabel(
             "ASTAP is required for plate solving and astrometric calibration. "
             "Configure the location of your ASTAP executable below."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("""
+        info_label.setStyleSheet(
+            """
             QLabel {
-                color: #a0aec0; 
-                font-style: italic; 
+                color: #a0aec0;
+                font-style: italic;
                 margin-bottom: 10px;
                 padding: 8px;
                 background-color: rgba(66, 153, 225, 0.1);
                 border-radius: 6px;
                 border: 1px solid rgba(66, 153, 225, 0.2);
             }
-        """)
+        """
+        )
         astap_content_layout.addWidget(info_label)
-        
+
         # ASTAP path configuration in a grid for better organization
         config_frame = QFrame()
-        config_frame.setStyleSheet("""
+        config_frame.setStyleSheet(
+            """
             QFrame {
                 background-color: rgba(26, 32, 44, 0.5);
                 border-radius: 8px;
                 padding: 10px;
                 margin: 5px;
             }
-        """)
+        """
+        )
         config_layout = QGridLayout(config_frame)
-        
+
         # Status indicator and path display row
         config_layout.addWidget(QLabel("Status:"), 0, 0)
-        
+
         # Status indicator
         self.astap_status_label = QLabel("●")
         self.astap_status_label.setFixedSize(20, 20)
-        self.astap_status_label.setStyleSheet("color: red; font-size: 16px; font-weight: bold;")
+        self.astap_status_label.setStyleSheet(
+            "color: red; font-size: 16px; font-weight: bold;"
+        )
         self.astap_status_label.setToolTip("ASTAP status indicator")
         config_layout.addWidget(self.astap_status_label, 0, 1)
-        
+
         # Status text
         self.astap_status_text = QLabel("ASTAP executable not found")
         self.astap_status_text.setStyleSheet("color: #a0aec0; font-size: 12px;")
         config_layout.addWidget(self.astap_status_text, 0, 2, 1, 2)
-        
+
         # Path display row
         config_layout.addWidget(QLabel("Path:"), 1, 0)
-        
+
         self.astap_path_edit = QLineEdit()
         self.astap_path_edit.setPlaceholderText("ASTAP executable not configured...")
         self.astap_path_edit.setReadOnly(True)
-        self.astap_path_edit.setStyleSheet("""
+        self.astap_path_edit.setStyleSheet(
+            """
             QLineEdit[readOnly="true"] {
                 background-color: #2d3748;
                 color: #e8e8e8;
@@ -306,26 +356,27 @@ class CalibrationSetupDialog(QDialog):
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 11px;
             }
-        """)
+        """
+        )
         config_layout.addWidget(self.astap_path_edit, 1, 1, 1, 3)
-        
+
         # Button row
         button_layout = QHBoxLayout()
-        
+
         # Browse button with proper sizing
         self.astap_browse_btn = QPushButton("Browse...")
         self.astap_browse_btn.setMinimumWidth(100)
         self.astap_browse_btn.setToolTip("Browse for ASTAP executable file")
         self.astap_browse_btn.clicked.connect(self.browse_astap_executable)
         button_layout.addWidget(self.astap_browse_btn)
-        
+
         # Auto-detect button
         self.astap_detect_btn = QPushButton("Auto-Detect")
         self.astap_detect_btn.setMinimumWidth(100)
         self.astap_detect_btn.setToolTip("Automatically search for ASTAP installation")
         self.astap_detect_btn.clicked.connect(self.auto_detect_astap)
         button_layout.addWidget(self.astap_detect_btn)
-        
+
         # Test button with proper sizing
         self.astap_test_btn = QPushButton("Test")
         self.astap_test_btn.setMinimumWidth(80)
@@ -333,23 +384,23 @@ class CalibrationSetupDialog(QDialog):
         self.astap_test_btn.clicked.connect(self.test_astap_executable)
         self.astap_test_btn.setEnabled(False)
         button_layout.addWidget(self.astap_test_btn)
-        
+
         button_layout.addStretch()
-        
+
         config_layout.addLayout(button_layout, 2, 0, 1, 4)
-        
+
         astap_content_layout.addWidget(config_frame)
-        
+
         # Set the content layout for the collapsible group
         self.astap_group.setContentLayout(astap_content_layout)
-        
+
         layout.addWidget(self.astap_group)
-        
+
     def setup_create_tab(self):
         """Tab for creating new master calibration files"""
         create_widget = QWidget()
         layout = QVBoxLayout(create_widget)
-        
+
         # Instructions
         instructions = QLabel(
             "Create Master Calibration Files\n\n"
@@ -357,84 +408,92 @@ class CalibrationSetupDialog(QDialog):
             "process all FITS files in each folder and create master calibration files."
         )
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("""
-            QLabel { 
+        instructions.setStyleSheet(
+            """
+            QLabel {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 rgba(66, 153, 225, 0.15), stop:1 rgba(66, 153, 225, 0.05));
                 color: #e8e8e8;
-                padding: 15px; 
-                border-radius: 8px; 
+                padding: 15px;
+                border-radius: 8px;
                 border: 1px solid rgba(66, 153, 225, 0.3);
                 font-weight: 500;
                 font-size: 13px;
                 margin-bottom: 10px;
             }
-        """)
+        """
+        )
         layout.addWidget(instructions)
-        
+
         # Calibration types grid
         grid_layout = QGridLayout()
-        
+
         # Bias frames
         self.setup_calibration_row(grid_layout, 0, "Bias", "bias")
-        
-        # Dark frames  
+
+        # Dark frames
         self.setup_calibration_row(grid_layout, 1, "Dark", "dark")
-        
+
         # Flat frames
         self.setup_calibration_row(grid_layout, 2, "Flat", "flat")
-        
+
         # Dark flat frames (new addition)
         self.setup_calibration_row(grid_layout, 3, "Dark Flat", "dark_flat")
-        
+
         layout.addLayout(grid_layout)
-        
+
         # Output folder selection
         output_group = QGroupBox("Master Files Output Location")
         output_layout = QHBoxLayout(output_group)
-        
+
         self.output_folder_edit = QLineEdit()
-        self.output_folder_edit.setPlaceholderText("Select where to save master calibration files...")
+        self.output_folder_edit.setPlaceholderText(
+            "Select where to save master calibration files..."
+        )
         output_layout.addWidget(QLabel("Output Folder:"))
         output_layout.addWidget(self.output_folder_edit)
-        
+
         self.output_browse_btn = QPushButton("Browse...")
         self.output_browse_btn.clicked.connect(self.browse_output_folder)
         output_layout.addWidget(self.output_browse_btn)
-        
+
         layout.addWidget(output_group)
-        
+
         self.tab_widget.addTab(create_widget, "Create New Masters")
-        
+
     def setup_calibration_row(self, grid_layout, row, name, type_key):
         """Setup a row for calibration frame selection"""
         # Enable checkbox
         checkbox = QCheckBox(f"Enable {name}")
         setattr(self, f"{type_key}_enabled", checkbox)
         grid_layout.addWidget(checkbox, row, 0)
-        
+
         # Folder path
         path_edit = QLineEdit()
-        path_edit.setPlaceholderText(f"Select folder containing {name.lower()} frames...")
+        path_edit.setPlaceholderText(
+            f"Select folder containing {name.lower()} frames..."
+        )
         setattr(self, f"{type_key}_folder_edit", path_edit)
         grid_layout.addWidget(path_edit, row, 1)
-        
+
         # Browse button
         browse_btn = QPushButton("Browse...")
-        browse_btn.clicked.connect(lambda checked, t=type_key: self.browse_calibration_folder(t))
+        browse_btn.clicked.connect(
+            lambda checked, t=type_key: self.browse_calibration_folder(t)
+        )
         grid_layout.addWidget(browse_btn, row, 2)
-        
+
         # Status label
         status_label = QLabel("Not selected")
         status_label.setStyleSheet("color: #a0aec0;")
         setattr(self, f"{type_key}_status", status_label)
         grid_layout.addWidget(status_label, row, 3)
-        
+
     def setup_existing_tab(self):
         """Tab for using existing master calibration files"""
         existing_widget = QWidget()
         layout = QVBoxLayout(existing_widget)
-        
+
         # Instructions
         instructions = QLabel(
             "Use Existing Master Calibration Files\n\n"
@@ -442,96 +501,103 @@ class CalibrationSetupDialog(QDialog):
             "These files should be previously created master bias, dark, flat, or dark flat frames."
         )
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("""
-            QLabel { 
+        instructions.setStyleSheet(
+            """
+            QLabel {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 rgba(72, 187, 120, 0.15), stop:1 rgba(72, 187, 120, 0.05));
                 color: #e8e8e8;
-                padding: 15px; 
-                border-radius: 8px; 
+                padding: 15px;
+                border-radius: 8px;
                 border: 1px solid rgba(72, 187, 120, 0.3);
                 font-weight: 500;
                 font-size: 13px;
                 margin-bottom: 10px;
             }
-        """)
+        """
+        )
         layout.addWidget(instructions)
-        
+
         # Existing files grid
         grid_layout = QGridLayout()
-        
+
         # Master bias
         self.setup_existing_file_row(grid_layout, 0, "Master Bias", "master_bias")
-        
+
         # Master dark
         self.setup_existing_file_row(grid_layout, 1, "Master Dark", "master_dark")
-        
+
         # Master flat
         self.setup_existing_file_row(grid_layout, 2, "Master Flat", "master_flat")
-        
+
         # Master dark flat
-        self.setup_existing_file_row(grid_layout, 3, "Master Dark Flat", "master_dark_flat")
-        
+        self.setup_existing_file_row(
+            grid_layout, 3, "Master Dark Flat", "master_dark_flat"
+        )
+
         layout.addLayout(grid_layout)
-        
+
         self.tab_widget.addTab(existing_widget, "Use Existing Masters")
-        
+
     def setup_existing_file_row(self, grid_layout, row, name, type_key):
         """Setup a row for existing master file selection"""
         # Enable checkbox
         checkbox = QCheckBox(f"Use {name}")
         setattr(self, f"{type_key}_enabled", checkbox)
         grid_layout.addWidget(checkbox, row, 0)
-        
+
         # File path
         path_edit = QLineEdit()
         path_edit.setPlaceholderText(f"Select existing {name.lower()} file...")
         setattr(self, f"{type_key}_file_edit", path_edit)
         grid_layout.addWidget(path_edit, row, 1)
-        
+
         # Browse button
         browse_btn = QPushButton("Browse...")
-        browse_btn.clicked.connect(lambda checked, t=type_key: self.browse_existing_file(t))
+        browse_btn.clicked.connect(
+            lambda checked, t=type_key: self.browse_existing_file(t)
+        )
         grid_layout.addWidget(browse_btn, row, 2)
-        
+
         # Info button
         info_btn = QPushButton("Info")
         info_btn.clicked.connect(lambda checked, t=type_key: self.show_file_info(t))
         grid_layout.addWidget(info_btn, row, 3)
-        
+
     def setup_progress_section(self, layout):
         """Setup progress bar and log display"""
         progress_group = QGroupBox("Processing Status")
         progress_layout = QVBoxLayout(progress_group)
-        
+
         # Status label
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("font-weight: bold; color: #4299e1;")
         progress_layout.addWidget(self.status_label)
-        
+
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar)
-        
+
         # Log display
         log_label = QLabel("Processing Log:")
         progress_layout.addWidget(log_label)
-        
+
         self.log_display = QTextEdit()
         self.log_display.setMaximumHeight(150)
         self.log_display.setFont(QFont("Consolas", 9))
         progress_layout.addWidget(self.log_display)
-        
+
         layout.addWidget(progress_group)
-        
+
     def setup_buttons(self, layout):
         """Setup dialog buttons"""
         button_layout = QHBoxLayout()
-        
+
         # Process button
         self.process_btn = QPushButton("Create Master Files")
-        self.process_btn.setStyleSheet("""
+        self.process_btn.setStyleSheet(
+            """
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #48bb78, stop:1 #38a169);
@@ -549,25 +615,26 @@ class CalibrationSetupDialog(QDialog):
                 background: #4a5568;
                 color: #a0aec0;
             }
-        """)
+        """
+        )
         self.process_btn.clicked.connect(self.start_processing)
         button_layout.addWidget(self.process_btn)
-        
+
         # Cancel button
         self.cancel_btn = QPushButton("Cancel Processing")
         self.cancel_btn.setVisible(False)
         self.cancel_btn.clicked.connect(self.cancel_processing)
         button_layout.addWidget(self.cancel_btn)
-        
+
         button_layout.addStretch()
-        
+
         # Close button
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         button_layout.addWidget(close_btn)
-        
+
         layout.addLayout(button_layout)
-        
+
     def center_on_parent_or_screen(self):
         """Ensure dialog appears in consistent location"""
         if self.parent():
@@ -583,7 +650,7 @@ class CalibrationSetupDialog(QDialog):
             x = (screen_geometry.width() - self.width()) // 2
             y = (screen_geometry.height() - self.height()) // 2
             self.move(x, y)
-            
+
     def restore_geometry(self):
         """Restore dialog position and size"""
         geometry = self.settings.value("geometry")
@@ -591,53 +658,60 @@ class CalibrationSetupDialog(QDialog):
             self.restoreGeometry(geometry)
         else:
             self.center_on_parent_or_screen()
-            
+
     def save_geometry(self):
         """Save dialog position and size"""
         self.settings.setValue("geometry", self.saveGeometry())
-        
+
     def load_settings(self):
         """Load previously saved settings"""
         # Load ASTAP path - first try from ASTAP manager, then from settings
-        astap_path = self.astap_manager.astap_path or self.settings.value("astap_executable", "")
-        
+        astap_path = self.astap_manager.astap_path or self.settings.value(
+            "astap_executable", ""
+        )
+
         if astap_path:
             self.astap_path_edit.setText(astap_path)
             # Skip validation during load to prevent dialogs
-            is_cli = "cli" in Path(astap_path).name.lower() or "console" in Path(astap_path).name.lower()
+            is_cli = (
+                "cli" in Path(astap_path).name.lower()
+                or "console" in Path(astap_path).name.lower()
+            )
             app_type = "CLI" if is_cli else "GUI"
-            self.update_astap_status(True, f"ASTAP {app_type} version loaded: {Path(astap_path).name}")
+            self.update_astap_status(
+                True, f"ASTAP {app_type} version loaded: {Path(astap_path).name}"
+            )
         else:
             self.auto_detect_astap()
-            
+
         # Load folder paths
         for cal_type in ["bias", "dark", "flat", "dark_flat"]:
             folder_path = self.settings.value(f"{cal_type}_folder", "")
             if hasattr(self, f"{cal_type}_folder_edit"):
                 getattr(self, f"{cal_type}_folder_edit").setText(folder_path)
-                
+
         # Load output folder
         output_path = self.settings.value("output_folder", "")
         self.output_folder_edit.setText(output_path)
-        
+
         # Auto-collapse ASTAP section if it's working
         if self.astap_manager.is_configured():
             self.astap_group.collapse()
-        
+
     def save_settings(self):
         """Save current settings"""
         # Save ASTAP path
         self.settings.setValue("astap_executable", self.astap_path_edit.text())
-        
+
         # Save folder paths
         for cal_type in ["bias", "dark", "flat", "dark_flat"]:
             if hasattr(self, f"{cal_type}_folder_edit"):
                 folder_path = getattr(self, f"{cal_type}_folder_edit").text()
                 self.settings.setValue(f"{cal_type}_folder", folder_path)
-                
+
         # Save output folder
         self.settings.setValue("output_folder", self.output_folder_edit.text())
-        
+
     # ASTAP-related methods
     def auto_detect_astap(self):
         """Attempt to auto-detect ASTAP executable"""
@@ -647,13 +721,13 @@ class CalibrationSetupDialog(QDialog):
             self.astap_path_edit.setText(detected_path)
             self.validate_astap_executable(detected_path)
             self.add_log_entry(f"Auto-detected ASTAP at: {detected_path}")
-            
+
             # Auto-collapse if ASTAP is working
             if self.astap_manager.is_configured():
                 self.astap_group.collapse()
         else:
             self.add_log_entry("ASTAP not found - manual configuration required")
-                    
+
     def browse_astap_executable(self):
         """Browse for ASTAP executable"""
         if sys.platform == "win32":
@@ -662,123 +736,147 @@ class CalibrationSetupDialog(QDialog):
         else:
             file_filter = "All Files (*)"
             default_name = "astap"
-            
+
         file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select ASTAP Executable",
-            str(Path.home()),
-            file_filter
+            self, "Select ASTAP Executable", str(Path.home()), file_filter
         )
-        
+
         if file_path:
             self.astap_path_edit.setText(file_path)
             self.validate_astap_executable(file_path)
-            
+
             # Auto-collapse if ASTAP is working
             if self.astap_manager.is_configured():
                 self.astap_group.collapse()
-            
+
     def validate_astap_executable(self, path):
         """Validate the ASTAP executable - skip execution test to prevent dialogs"""
         if not path:
             self.update_astap_status(False, "No path specified")
             return False
-            
+
         path_obj = Path(path)
-        
+
         # Check if file exists
         if not path_obj.exists():
             self.update_astap_status(False, f"File not found: {path}")
             return False
-            
+
         # Check if it's executable
         if not os.access(path, os.X_OK):
             self.update_astap_status(False, f"File is not executable: {path}")
             return False
-            
+
         # Check filename contains "astap"
         if "astap" not in path_obj.name.lower():
-            self.update_astap_status(False, f"Warning: Filename doesn't contain 'astap': {path_obj.name}")
+            self.update_astap_status(
+                False, f"Warning: Filename doesn't contain 'astap': {path_obj.name}"
+            )
             return False
-        
+
         # Skip execution test during validation to prevent dialog popups
         is_cli = "cli" in path_obj.name.lower() or "console" in path_obj.name.lower()
         app_type = "CLI" if is_cli else "GUI"
-        self.update_astap_status(True, f"ASTAP {app_type} version validated: {path_obj.name}")
+        self.update_astap_status(
+            True, f"ASTAP {app_type} version validated: {path_obj.name}"
+        )
         return True
-            
+
     def update_astap_status(self, is_valid, message):
         """Update ASTAP status indicators"""
         if is_valid:
-            self.astap_status_label.setStyleSheet("color: green; font-size: 16px; font-weight: bold;")
+            self.astap_status_label.setStyleSheet(
+                "color: green; font-size: 16px; font-weight: bold;"
+            )
             self.astap_status_label.setToolTip("ASTAP executable found and validated")
             self.astap_status_text.setText(message)
             self.astap_status_text.setStyleSheet("color: green; font-size: 12px;")
             self.astap_test_btn.setEnabled(True)
         else:
-            self.astap_status_label.setStyleSheet("color: red; font-size: 16px; font-weight: bold;")
+            self.astap_status_label.setStyleSheet(
+                "color: red; font-size: 16px; font-weight: bold;"
+            )
             self.astap_status_label.setToolTip("ASTAP executable not found or invalid")
             self.astap_status_text.setText(message)
             self.astap_status_text.setStyleSheet("color: red; font-size: 12px;")
             self.astap_test_btn.setEnabled(False)
-            
+
     def test_astap_executable(self):
         """Test ASTAP executable by running it with help flag"""
         astap_path = self.astap_path_edit.text()
         if not astap_path:
             return
-            
+
         # Warn user about potential dialogs
-        is_cli = "cli" in Path(astap_path).name.lower() or "console" in Path(astap_path).name.lower()
+        is_cli = (
+            "cli" in Path(astap_path).name.lower()
+            or "console" in Path(astap_path).name.lower()
+        )
         app_type = "CLI" if is_cli else "GUI"
-        
+
         if not is_cli:
             reply = QMessageBox.question(
                 self,
                 "Test ASTAP GUI Version",
                 f"Testing {Path(astap_path).name} may open GUI windows or dialogs.\n\nProceed with test?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply != QMessageBox.StandardButton.Yes:
                 return
-            
+
         try:
             import subprocess
+
             self.add_log_entry(f"Testing ASTAP {app_type} version...")
-            
+
             # Use different timeout for CLI vs GUI
             timeout = 10 if is_cli else 15
-            
-            result = subprocess.run([astap_path, "-h"], capture_output=True, text=True, timeout=timeout)
-            
+
+            result = subprocess.run(
+                [astap_path, "-h"], capture_output=True, text=True, timeout=timeout
+            )
+
             if result.returncode == 0:
                 self.add_log_entry("ASTAP test successful!")
-                output_preview = result.stdout[:200] if result.stdout else "No console output (normal for GUI versions)"
+                output_preview = (
+                    result.stdout[:200]
+                    if result.stdout
+                    else "No console output (normal for GUI versions)"
+                )
                 QMessageBox.information(
-                    self, 
-                    f"ASTAP {app_type} Test", 
+                    self,
+                    f"ASTAP {app_type} Test",
                     f"ASTAP executable test successful!\n\n"
-                    f"Return code: {result.returncode}\nOutput preview:\n{output_preview}..."
+                    f"Return code: {result.returncode}\nOutput preview:\n{output_preview}...",
                 )
             else:
-                self.add_log_entry(f"ASTAP test failed with return code: {result.returncode}")
+                self.add_log_entry(
+                    f"ASTAP test failed with return code: {result.returncode}"
+                )
                 QMessageBox.warning(
                     self,
-                    "ASTAP Test Failed", 
-                    f"ASTAP returned error code {result.returncode}\n\nError: {result.stderr[:200]}"
+                    "ASTAP Test Failed",
+                    f"ASTAP returned error code {result.returncode}\n\nError: {result.stderr[:200]}",
                 )
         except subprocess.TimeoutExpired:
             if is_cli:
                 self.add_log_entry("ASTAP CLI test timed out")
-                QMessageBox.warning(self, "ASTAP Test", "ASTAP CLI test timed out after 10 seconds")
+                QMessageBox.warning(
+                    self, "ASTAP Test", "ASTAP CLI test timed out after 10 seconds"
+                )
             else:
                 self.add_log_entry("ASTAP GUI test timed out (may be normal)")
-                QMessageBox.information(self, "ASTAP Test", 
-                    "ASTAP GUI test timed out, but this may be normal\nif ASTAP opened a GUI window. Check if ASTAP is running.")
+                QMessageBox.information(
+                    self,
+                    "ASTAP Test",
+                    "ASTAP GUI test timed out, but this may be normal\nif ASTAP opened a GUI window. Check if ASTAP is running.",
+                )
         except Exception as e:
             self.add_log_entry(f"ASTAP test error: {str(e)}")
-            QMessageBox.critical(self, "ASTAP Test Error", f"Error testing ASTAP:\n{str(e)}")
-    
+            QMessageBox.critical(
+                self, "ASTAP Test Error", f"Error testing ASTAP:\n{str(e)}"
+            )
+
     # Calibration folder methods
     def browse_calibration_folder(self, cal_type):
         """Browse for calibration frame folder"""
@@ -786,13 +884,13 @@ class CalibrationSetupDialog(QDialog):
             self,
             f"Select {cal_type.replace('_', ' ').title()} Frames Folder",
             "",
-            QFileDialog.Option.ShowDirsOnly
+            QFileDialog.Option.ShowDirsOnly,
         )
-        
+
         if folder:
             folder_edit = getattr(self, f"{cal_type}_folder_edit")
             folder_edit.setText(folder)
-            
+
             # Update status
             fits_count = len(list(Path(folder).glob("*.fit*")))
             status_label = getattr(self, f"{cal_type}_status")
@@ -802,41 +900,43 @@ class CalibrationSetupDialog(QDialog):
             else:
                 status_label.setText("No FITS files found")
                 status_label.setStyleSheet("color: red;")
-                
+
     def browse_output_folder(self):
         """Browse for output folder"""
         folder = QFileDialog.getExistingDirectory(
             self,
             "Select Output Folder for Master Calibration Files",
             "",
-            QFileDialog.Option.ShowDirsOnly
+            QFileDialog.Option.ShowDirsOnly,
         )
-        
+
         if folder:
             self.output_folder_edit.setText(folder)
-            
+
     def browse_existing_file(self, file_type):
         """Browse for existing master calibration file"""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             f"Select Existing {file_type.replace('_', ' ').title()} File",
             "",
-            "FITS Files (*.fits *.fit);;All Files (*)"
+            "FITS Files (*.fits *.fit);;All Files (*)",
         )
-        
+
         if file_path:
             file_edit = getattr(self, f"{file_type}_file_edit")
             file_edit.setText(file_path)
-            
+
     def show_file_info(self, file_type):
         """Show information about selected master file"""
         file_edit = getattr(self, f"{file_type}_file_edit")
         file_path = file_edit.text()
-        
+
         if not file_path or not Path(file_path).exists():
-            QMessageBox.warning(self, "File Info", "No file selected or file does not exist.")
+            QMessageBox.warning(
+                self, "File Info", "No file selected or file does not exist."
+            )
             return
-            
+
         # Basic file info (in real implementation, would read FITS headers)
         file_size = Path(file_path).stat().st_size
         info_text = f"""
@@ -851,9 +951,9 @@ Note: In the full implementation, this would show:
 - Processing history
 - Statistics (mean, std, etc.)
         """
-        
+
         QMessageBox.information(self, "Master File Information", info_text.strip())
-        
+
     # Processing methods
     def start_processing(self):
         """Start calibration processing"""
@@ -865,29 +965,40 @@ Note: In the full implementation, this would show:
                 if enabled_cb.isChecked():
                     folder_edit = getattr(self, f"{cal_type}_folder_edit")
                     if not folder_edit.text():
-                        QMessageBox.warning(self, "Validation Error", 
-                                          f"Please select a folder for {cal_type.replace('_', ' ')} frames.")
+                        QMessageBox.warning(
+                            self,
+                            "Validation Error",
+                            f"Please select a folder for {cal_type.replace('_', ' ')} frames.",
+                        )
                         return
                     enabled_types.append(cal_type)
-                    
+
             if not enabled_types:
-                QMessageBox.warning(self, "Validation Error", 
-                                  "Please enable at least one calibration type.")
+                QMessageBox.warning(
+                    self,
+                    "Validation Error",
+                    "Please enable at least one calibration type.",
+                )
                 return
-                
+
             if not self.output_folder_edit.text():
-                QMessageBox.warning(self, "Validation Error", 
-                                  "Please select an output folder.")
+                QMessageBox.warning(
+                    self, "Validation Error", "Please select an output folder."
+                )
                 return
-                
+
             # Process first enabled type (in real implementation, would process all)
             first_type = enabled_types[0]
             folder_edit = getattr(self, f"{first_type}_folder_edit")
-            
-            self.start_worker_processing(first_type, folder_edit.text(), self.output_folder_edit.text())
+
+            self.start_worker_processing(
+                first_type, folder_edit.text(), self.output_folder_edit.text()
+            )
         else:
-            QMessageBox.information(self, "Info", "Existing master files validated and ready for use!")
-            
+            QMessageBox.information(
+                self, "Info", "Existing master files validated and ready for use!"
+            )
+
     def start_worker_processing(self, cal_type, input_folder, output_folder):
         """Start processing in worker thread"""
         self.worker = CalibrationWorker(cal_type, input_folder, output_folder, {})
@@ -895,39 +1006,39 @@ Note: In the full implementation, this would show:
         self.worker.status_updated.connect(self.update_status)
         self.worker.log_updated.connect(self.add_log_entry)
         self.worker.finished.connect(self.processing_finished)
-        
+
         # Update UI
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.process_btn.setVisible(False)
         self.cancel_btn.setVisible(True)
-        
+
         self.worker.start()
-        
+
     def update_progress(self, value):
         """Update progress bar"""
         self.progress_bar.setValue(value)
-        
+
     def update_status(self, message):
         """Update status label"""
         self.status_label.setText(message)
-        
+
     def add_log_entry(self, message):
         """Add entry to log display"""
         self.log_display.append(f"[{time.strftime('%H:%M:%S')}] {message}")
-        
+
     def cancel_processing(self):
         """Cancel current processing"""
         if self.worker:
             self.worker.cancel()
             self.add_log_entry("Cancellation requested...")
-            
+
     def processing_finished(self, success, message):
         """Handle processing completion"""
         self.progress_bar.setVisible(False)
         self.process_btn.setVisible(True)
         self.cancel_btn.setVisible(False)
-        
+
         if success:
             self.status_label.setText("Processing completed successfully!")
             self.status_label.setStyleSheet("font-weight: bold; color: green;")
@@ -936,33 +1047,37 @@ Note: In the full implementation, this would show:
             self.status_label.setText("Processing failed!")
             self.status_label.setStyleSheet("font-weight: bold; color: red;")
             QMessageBox.critical(self, "Error", message)
-            
+
         self.worker = None
-        
+
     def closeEvent(self, event):
         """Handle dialog closing"""
         if self.worker and self.worker.isRunning():
-            reply = QMessageBox.question(self, "Confirm Close", 
-                                       "Processing is still running. Are you sure you want to close?",
-                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            reply = QMessageBox.question(
+                self,
+                "Confirm Close",
+                "Processing is still running. Are you sure you want to close?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
             if reply == QMessageBox.StandardButton.Yes:
                 self.worker.cancel()
                 self.worker.wait()
             else:
                 event.ignore()
                 return
-                
+
         self.save_geometry()
         self.save_settings()
         event.accept()
+
 
 # Example usage and testing
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("PulseHunter")
     app.setOrganizationName("GeekAstro")
-    
+
     dialog = CalibrationSetupDialog()
     dialog.show()
-    
+
     sys.exit(app.exec())

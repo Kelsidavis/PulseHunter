@@ -4,87 +4,92 @@ PulseHunter Enhanced Calibration System Setup Script
 Handles installation, configuration, and initial setup
 """
 
-import sys
 import os
 import shutil
 import subprocess
-from pathlib import Path
+import sys
 import tempfile
 import urllib.request
 import zipfile
+from pathlib import Path
 
 # Setup metadata
 PULSEHUNTER_VERSION = "Alpha-Enhanced"
 REQUIRED_PYTHON = (3, 8)
-REQUIRED_MODULES = [
-    'PyQt6>=6.4.0',
-    'numpy>=1.21.0',
-    'configparser'
-]
-OPTIONAL_MODULES = [
-    'astropy>=5.0.0',
-    'scipy>=1.7.0',
-    'Pillow>=8.0.0'
-]
+REQUIRED_MODULES = ["PyQt6>=6.4.0", "numpy>=1.21.0", "configparser"]
+OPTIONAL_MODULES = ["astropy>=5.0.0", "scipy>=1.7.0", "Pillow>=8.0.0"]
+
 
 def check_python_version():
     """Check Python version compatibility"""
     print("Checking Python version...")
-    
+
     if sys.version_info < REQUIRED_PYTHON:
-        print(f"❌ Error: Python {REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]} or higher is required")
+        print(
+            f"❌ Error: Python {REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]} or higher is required"
+        )
         print(f"   Current version: {sys.version_info.major}.{sys.version_info.minor}")
         return False
-    
-    print(f"✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+
+    print(
+        f"✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
     return True
+
 
 def install_dependencies():
     """Install required Python packages"""
     print("\nInstalling dependencies...")
-    
+
     # Required packages
     print("Installing required packages...")
     for package in REQUIRED_MODULES:
         print(f"  Installing {package}...")
         try:
-            result = subprocess.run([
-                sys.executable, '-m', 'pip', 'install', package
-            ], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", package],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             print(f"  ✓ {package} installed successfully")
         except subprocess.CalledProcessError as e:
             print(f"  ❌ Failed to install {package}: {e}")
             print(f"     Output: {e.stdout}")
             print(f"     Error: {e.stderr}")
             return False
-    
+
     # Optional packages
     print("\nInstalling optional packages...")
     for package in OPTIONAL_MODULES:
         print(f"  Installing {package}...")
         try:
-            subprocess.run([
-                sys.executable, '-m', 'pip', 'install', package
-            ], capture_output=True, text=True, check=True)
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", package],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             print(f"  ✓ {package} installed successfully")
         except subprocess.CalledProcessError:
             print(f"  ⚠️  {package} installation failed (optional)")
-    
+
     return True
+
 
 def create_directory_structure():
     """Create required directories"""
     print("\nCreating directory structure...")
-    
+
     directories = [
-        'logs',
-        'calibration_output',
-        'temp',
-        'resources',
-        'examples',
-        'docs'
+        "logs",
+        "calibration_output",
+        "temp",
+        "resources",
+        "examples",
+        "docs",
     ]
-    
+
     for directory in directories:
         dir_path = Path(directory)
         if not dir_path.exists():
@@ -92,15 +97,16 @@ def create_directory_structure():
             print(f"✓ Created directory: {directory}")
         else:
             print(f"  Directory already exists: {directory}")
-    
+
     return True
+
 
 def create_configuration_files():
     """Create initial configuration files"""
     print("\nCreating configuration files...")
-    
+
     # Create calibration_config.ini if it doesn't exist
-    config_file = Path('calibration_config.ini')
+    config_file = Path("calibration_config.ini")
     if not config_file.exists():
         config_content = """[PROCESSING]
 min_frames_bias = 10
@@ -129,48 +135,50 @@ default_output_folder = calibration_output
 auto_find_calibration_folders = True
 
 [ASTAP]
-executable_path = 
+executable_path =
 auto_detect_on_startup = True
 timeout_seconds = 30
-additional_parameters = 
+additional_parameters =
 verify_on_load = True
 """
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             f.write(config_content)
         print("✓ Created calibration_config.ini")
     else:
         print("  calibration_config.ini already exists")
-    
+
     # Create desktop shortcut template
     if sys.platform == "win32":
         create_windows_shortcut()
     elif sys.platform == "linux":
         create_linux_desktop_entry()
-    
+
     return True
+
 
 def create_windows_shortcut():
     """Create Windows desktop shortcut"""
     try:
         import winshell
         from win32com.client import Dispatch
-        
+
         desktop = winshell.desktop()
         shortcut_path = Path(desktop) / "PulseHunter.lnk"
-        
-        shell = Dispatch('WScript.Shell')
+
+        shell = Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(str(shortcut_path))
         shortcut.Targetpath = sys.executable
         shortcut.Arguments = str(Path.cwd() / "launch_pulsehunter.py")
         shortcut.WorkingDirectory = str(Path.cwd())
         shortcut.IconLocation = str(Path.cwd() / "resources" / "icon.ico")
         shortcut.save()
-        
+
         print("✓ Created desktop shortcut")
     except ImportError:
         print("  Desktop shortcut creation requires pywin32 (optional)")
     except Exception as e:
         print(f"  Could not create desktop shortcut: {e}")
+
 
 def create_linux_desktop_entry():
     """Create Linux desktop entry"""
@@ -185,12 +193,12 @@ Icon={Path.cwd() / "resources" / "icon.png"}
 Terminal=false
 Categories=Science;Astronomy;
 """
-        
+
         # Try to create in user's applications directory
         apps_dir = Path.home() / ".local" / "share" / "applications"
         if apps_dir.exists():
             desktop_file = apps_dir / "pulsehunter.desktop"
-            with open(desktop_file, 'w') as f:
+            with open(desktop_file, "w") as f:
                 f.write(desktop_entry)
             os.chmod(desktop_file, 0o755)
             print("✓ Created desktop entry")
@@ -199,11 +207,12 @@ Categories=Science;Astronomy;
     except Exception as e:
         print(f"  Could not create desktop entry: {e}")
 
+
 def download_astap_info():
     """Provide information about downloading ASTAP"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ASTAP PLATE SOLVING SOFTWARE")
-    print("="*60)
+    print("=" * 60)
     print("PulseHunter requires ASTAP for plate solving and astrometric calibration.")
     print()
     print("ASTAP is not automatically installed and must be downloaded separately:")
@@ -226,20 +235,24 @@ def download_astap_info():
     print("  3. If not detected, use Calibration → Configure ASTAP")
     print("  4. Test the connection with Calibration → Test ASTAP")
     print()
-    print("💡 Pro tip: Install to C:/Program Files/astap/astap.exe for instant detection!")
-    
+    print(
+        "💡 Pro tip: Install to C:/Program Files/astap/astap.exe for instant detection!"
+    )
+
     return True
+
 
 def create_example_files():
     """Create example files and documentation"""
     print("\nCreating example files...")
-    
-    examples_dir = Path('examples')
-    
+
+    examples_dir = Path("examples")
+
     # Create example configuration
     example_config = examples_dir / "example_config.ini"
-    with open(example_config, 'w') as f:
-        f.write("""# Example PulseHunter Configuration
+    with open(example_config, "w") as f:
+        f.write(
+            """# Example PulseHunter Configuration
 # Copy this to calibration_config.ini and modify as needed
 
 [PROCESSING]
@@ -261,12 +274,14 @@ timeout_seconds = 60
 [DIALOG]
 # Default output folder for master calibration files
 default_output_folder = ./masters
-""")
-    
+"""
+        )
+
     # Create README file
-    readme_file = Path('README_Enhanced.md')
-    with open(readme_file, 'w') as f:
-        f.write(f"""# PulseHunter Enhanced Calibration System
+    readme_file = Path("README_Enhanced.md")
+    with open(readme_file, "w") as f:
+        f.write(
+            f"""# PulseHunter Enhanced Calibration System
 
 Version: {PULSEHUNTER_VERSION}
 
@@ -317,23 +332,25 @@ Edit `calibration_config.ini` to customize:
 - GitHub: https://github.com/Kelsidavis/PulseHunter
 - Website: https://geekastro.dev
 - Email: pulsehunter@geekastro.dev
-""")
-    
+"""
+        )
+
     print("✓ Created example files and documentation")
     return True
+
 
 def verify_installation():
     """Verify that installation completed successfully"""
     print("\nVerifying installation...")
-    
+
     required_files = [
-        'pulse_gui.py',
-        'calibration_dialog.py',
-        'calibration_utilities.py',
-        'launch_pulsehunter.py',
-        'calibration_config.ini'
+        "pulse_gui.py",
+        "calibration_dialog.py",
+        "calibration_utilities.py",
+        "launch_pulsehunter.py",
+        "calibration_config.ini",
     ]
-    
+
     missing_files = []
     for file in required_files:
         if Path(file).exists():
@@ -341,32 +358,34 @@ def verify_installation():
         else:
             print(f"❌ {file} (MISSING)")
             missing_files.append(file)
-    
+
     if missing_files:
         print(f"\n❌ Installation incomplete. Missing files: {', '.join(missing_files)}")
         return False
-    
+
     # Test import
     try:
         print("\nTesting module imports...")
-        import calibration_utilities
         import calibration_dialog
+        import calibration_utilities
+
         print("✓ All modules import successfully")
     except Exception as e:
         print(f"❌ Import test failed: {e}")
         return False
-    
+
     print("\n✓ Installation verification completed successfully!")
     return True
 
+
 def run_setup():
     """Run the complete setup process"""
-    print("="*60)
+    print("=" * 60)
     print(f"PULSEHUNTER ENHANCED CALIBRATION SETUP v{PULSEHUNTER_VERSION}")
-    print("="*60)
+    print("=" * 60)
     print("Setting up PulseHunter Enhanced Calibration System...")
     print()
-    
+
     setup_steps = [
         ("Checking Python version", check_python_version),
         ("Installing dependencies", install_dependencies),
@@ -375,13 +394,13 @@ def run_setup():
         ("Creating examples", create_example_files),
         ("Verifying installation", verify_installation),
     ]
-    
+
     completed_steps = 0
-    
+
     for step_name, step_func in setup_steps:
         print(f"\n{step_name}:")
         print("-" * (len(step_name) + 1))
-        
+
         try:
             if step_func():
                 completed_steps += 1
@@ -392,18 +411,18 @@ def run_setup():
         except Exception as e:
             print(f"❌ {step_name} failed with error: {e}")
             break
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("SETUP SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Completed steps: {completed_steps}/{len(setup_steps)}")
-    
+
     if completed_steps == len(setup_steps):
         print("\n🎉 Setup completed successfully!")
         download_astap_info()
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("NEXT STEPS")
-        print("="*60)
+        print("=" * 60)
         print("1. Download and install ASTAP from https://www.hnsky.org/astap.htm")
         print("2. Run: python launch_pulsehunter.py")
         print("3. Configure ASTAP using the Calibration menu")
@@ -412,13 +431,17 @@ def run_setup():
         print("For help and documentation, see README_Enhanced.md")
         return True
     else:
-        print(f"\n⚠️  Setup incomplete ({completed_steps}/{len(setup_steps)} steps completed)")
+        print(
+            f"\n⚠️  Setup incomplete ({completed_steps}/{len(setup_steps)} steps completed)"
+        )
         print("Please fix the errors above and run setup.py again")
         return False
 
+
 def show_help():
     """Show help information"""
-    print(f"""
+    print(
+        f"""
 PulseHunter Enhanced Calibration Setup v{PULSEHUNTER_VERSION}
 
 Usage: python setup.py [OPTION]
@@ -433,63 +456,59 @@ Examples:
   python setup.py              # Full setup
   python setup.py --deps-only  # Install dependencies only
   python setup.py --verify     # Check installation
-""")
+"""
+    )
+
 
 def clean_installation():
     """Clean up installation files"""
     print("Cleaning installation...")
-    
-    files_to_remove = [
-        'calibration_config.ini',
-        'README_Enhanced.md'
-    ]
-    
-    dirs_to_remove = [
-        'logs',
-        'temp',
-        'examples',
-        '__pycache__'
-    ]
-    
+
+    files_to_remove = ["calibration_config.ini", "README_Enhanced.md"]
+
+    dirs_to_remove = ["logs", "temp", "examples", "__pycache__"]
+
     for file in files_to_remove:
         file_path = Path(file)
         if file_path.exists():
             file_path.unlink()
             print(f"✓ Removed {file}")
-    
+
     for directory in dirs_to_remove:
         dir_path = Path(directory)
         if dir_path.exists():
             shutil.rmtree(dir_path)
             print(f"✓ Removed directory {directory}")
-    
+
     print("✓ Cleanup completed")
+
 
 def main():
     """Main setup function"""
     args = sys.argv[1:]
-    
-    if '--help' in args or '-h' in args:
+
+    if "--help" in args or "-h" in args:
         show_help()
         return 0
-    
-    if '--clean' in args:
+
+    if "--clean" in args:
         clean_installation()
         return 0
-    
-    if '--verify' in args:
+
+    if "--verify" in args:
         return 0 if verify_installation() else 1
-    
-    if '--deps-only' in args:
+
+    if "--deps-only" in args:
         if check_python_version() and install_dependencies():
             print("✓ Dependencies installed successfully")
             return 0
         else:
             print("❌ Dependency installation failed")
             return 1
-    
+
     # Run full setup
     return 0 if run_setup() else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
