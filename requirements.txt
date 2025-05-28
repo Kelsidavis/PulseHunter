@@ -11,6 +11,8 @@ astropy>=5.0.0
 
 # Image processing
 Pillow>=8.0.0
+opencv-contrib-python>=4.8.0
+
 
 # Configuration and data handling
 configparser
