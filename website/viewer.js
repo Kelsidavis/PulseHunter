@@ -1,3 +1,19 @@
+function waitForAladin(timeout = 5000) {
+    return new Promise((resolve, reject) => {
+        const start = Date.now();
+        function check() {
+            if (window.A && typeof A.aladin === 'function') {
+                resolve(A);
+            } else if (Date.now() - start > timeout) {
+                reject(new Error('Aladin Lite library not loaded'));
+            } else {
+                setTimeout(check, 50);
+            }
+        }
+        check();
+    });
+}
+
 /**
  * Enhanced PulseHunter Detection Viewer
  * Optimized for performance and user experience
@@ -12,7 +28,6 @@ class PulseHunterViewer {
         this.loadingState = false;
         this.retryCount = 0;
         this.maxRetries = 3;
-        this.debugOverlay = this.createDebugOverlay();
 
         // Performance monitoring
         this.performanceMetrics = {
@@ -91,7 +106,7 @@ class PulseHunterViewer {
                 setTimeout(() => {
                     if (this.aladin) {
                         console.log('✅ Aladin initialized successfully');
-                        this.logDebug('Aladin initialized ✔');
+                        logDebug('Aladin initialized ✔');
                         resolve();
                     } else {
                         reject(new Error('Aladin failed to initialize'));
@@ -140,7 +155,7 @@ class PulseHunterViewer {
             }
 
             console.log(`✅ Successfully loaded ${this.detections.length} total detections`);
-            this.logDebug(`Loaded ${this.detections.length} detections`);
+            logDebug(`Loaded ${this.detections.length} detections`);
 
             if (this.detections.length === 0) {
                 throw new Error('No detections found in any report files');
@@ -276,7 +291,7 @@ class PulseHunterViewer {
 
     renderVisualization() {
         if (!this.aladin || this.detections.length === 0) {
-            this.logDebug('⚠️ No detections found — nothing to render.');
+            logDebug('⚠️ No detections found — nothing to render.');
             console.warn('Cannot render visualization: missing Aladin or detections');
             return;
         }
@@ -321,7 +336,7 @@ class PulseHunterViewer {
             this.setOptimalView();
 
             this.performanceMetrics.renderEnd = performance.now();
-        this.logDebug('Sky map rendered ✔');
+            logDebug('Sky map rendered ✔');
             console.log(`🎨 Visualization rendered in ${(this.performanceMetrics.renderEnd - this.performanceMetrics.renderStart).toFixed(2)}ms`);
 
         } catch (error) {
@@ -460,7 +475,7 @@ class PulseHunterViewer {
         const match = detection.match_name || '—';
 
         // Add type indicator
-        const typeIndicator = detection.dimming ? '🌑 Dimming' : '✨ Brightening';
+        let typeIndicator = detection.dimming ? '🌑 Dimming' : '✨ Brightening';
         if (detection.exo_match) {
             typeIndicator += ' (Exoplanet Candidate)';
         }
@@ -793,13 +808,45 @@ async function loadDetections() {
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🌟 Starting PulseHunter Detection Viewer');
-    window.viewer = new PulseHunterViewer();
+function logDebug(message) {
+    console.log(message);
+}
 
-    // Add debug access
-    window.debugViewer = () => window.viewer.debug();
+function createDebugOverlay() {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.bottom = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.maxHeight = '150px';
+    overlay.style.overflowY = 'auto';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+    overlay.style.color = 'lime';
+    overlay.style.fontFamily = 'monospace';
+    overlay.style.fontSize = '12px';
+    overlay.style.padding = '4px';
+    overlay.style.zIndex = '9999';
+    overlay.id = 'debugOverlay';
+    document.body.appendChild(overlay);
+}
+
+// Initialize when DOM is ready
+document.addEventListener("DOMContentLoaded", function () {
+    console.log('🌟 Starting PulseHunter Detection Viewer');
+    
+    waitForAladin().then(() => {
+        window.viewer = new PulseHunterViewer();
+        
+        // Add debug access
+        window.debugViewer = () => window.viewer.debug();
+    }).catch(err => {
+        console.error("❌ Aladin initialization failed:", err);
+        
+        // Try to initialize without Aladin for debugging
+        console.log('🔧 Attempting to initialize without Aladin...');
+        window.viewer = new PulseHunterViewer();
+        window.debugViewer = () => window.viewer.debug();
+    });
 });
 
 // Handle unhandled promise rejections
@@ -807,36 +854,6 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     event.preventDefault();
 });
-
-
-
-    createDebugOverlay() {
-        const overlay = document.createElement('div');
-        overlay.id = 'debug-overlay';
-        overlay.style.cssText = `
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            background: rgba(0,0,0,0.85);
-            color: #0f0;
-            padding: 0.5rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            max-height: 30vh;
-            overflow-y: auto;
-            z-index: 9999;
-        `;
-        document.body.appendChild(overlay);
-        return overlay;
-    }
-
-    logDebug(message) {
-        console.log(message);
-        const p = document.createElement('div');
-        p.textContent = `🟢 ${message}`;
-        this.debugOverlay.appendChild(p);
-    }
-
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
