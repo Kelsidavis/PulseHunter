@@ -1251,6 +1251,8 @@ class PulseHunterMainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error Loading Project", f"Could not load project:\n{str(e)}")
                 
+    import numpy as np
+
     def save_project(self):
         """Save current project"""
         if not self.current_project:
@@ -1266,18 +1268,23 @@ class PulseHunterMainWindow(QMainWindow):
             try:
                 self.current_project['detections'] = self.current_detections
                 self.current_project['saved'] = datetime.now().isoformat()
-                
+
+                def convert_numpy(obj):
+                    if isinstance(obj, np.generic):
+                        return obj.item()
+                    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
                 with open(file_path, 'w') as f:
                     if file_path.endswith('.phproj'):
                         pickle.dump(self.current_project, f)
                     else:
-                        json.dump(self.current_project, f, indent=2)
-                
+                        json.dump(self.current_project, f, indent=2, default=convert_numpy)
+
                 self.add_system_log(f"Project saved: {Path(file_path).name}")
-                
+
             except Exception as e:
                 QMessageBox.critical(self, "Error Saving Project", f"Could not save project:\n{str(e)}")
-                
+
     def update_project_status(self):
         """Update project status display"""
         if self.current_project:

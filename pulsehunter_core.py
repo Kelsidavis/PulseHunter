@@ -420,9 +420,17 @@ def save_report(detections, output_path="pulse_report.json"):
             }
         }
         
+        import numpy as np
+
+        def convert_numpy(obj):
+            if isinstance(obj, np.generic):
+                return obj.item()
+            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
         # Save local file
         with open(output_path, "w") as f:
-            json.dump(report_data, f, indent=2)
+            json.dump(report_data, f, indent=2, default=convert_numpy)
+
         print(f"✅ Report saved locally: {output_path}")
         
         # Attempt upload
