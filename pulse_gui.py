@@ -68,11 +68,11 @@ from calibration_utilities import (
     CalibrationLogger,
     DialogPositionManager,
 )
-
-# Import PulseHunter components
-from enhanced_calibration_dialog import CalibrationSetupDialog
 from exoplanet_match import match_transits_with_exoplanets
 from fits_processing import CalibrationProcessor, FITSProcessor
+
+# Import PulseHunter components
+from fixed_calibration_dialog import FixedCalibrationDialog
 
 
 class ProcessingWorker(QThread):
@@ -118,13 +118,15 @@ class ProcessingWorker(QThread):
             self.log_updated.emit(f"Loading FITS files from: {input_folder}")
 
             # Load FITS stack using pulsehunter_core
-            frames, filenames, wcs_objects = pulsehunter_core.load_fits_stack(
-                input_folder,
+            # Load FITS stack using enhanced loading with automatic calibration
+            frames, filenames, wcs_objects = enhanced_load_fits_stack(
+                folder=input_folder,
                 plate_solve_missing=True,
                 astap_exe=astap_path,
-                master_bias=master_bias,
-                master_dark=master_dark,
-                master_flat=master_flat,
+                auto_calibrate=True,
+                manual_master_bias=master_bias,
+                manual_master_dark=master_dark,
+                manual_master_flat=master_flat,
             )
 
             if len(frames) == 0:
@@ -527,7 +529,7 @@ GAIA: {detection.get('match_name', 'None')}
         """
 
         if detection.get("g_mag"):
-            details += f"G Magnitude: {detection.get('g_mag'):.2f}\n"
+            details += f"G Magnitude: {detection.get('g_mag'):.2f}\nfrom auto_calibration_manager import enhanced_load_fits_stack, AutoCalibrationManager\n"
 
         if detection.get("exo_match"):
             exo = detection["exo_match"]
@@ -723,7 +725,7 @@ class ProjectConfigDialog(QDialog):
 
     def setup_calibration(self):
         """Open calibration dialog"""
-        dialog = CalibrationSetupDialog(self)
+        dialog = FixedCalibrationDialog(self)
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
             self.cal_status_label.setText("Calibration configured ✓")
@@ -1521,7 +1523,7 @@ class PulseHunterMainWindow(QMainWindow):
         """Open the enhanced calibration setup dialog"""
         try:
             self.add_system_log("Opening calibration setup dialog...")
-            dialog = CalibrationSetupDialog(self)
+            dialog = FixedCalibrationDialog(self)
             result = dialog.exec()
 
             # Update ASTAP status after dialog closes

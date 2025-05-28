@@ -367,6 +367,7 @@ def verify_installation():
     try:
         print("\nTesting module imports...")
         import calibration_dialog
+
         import calibration_utilities
 
         print("✓ All modules import successfully")
