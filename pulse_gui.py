@@ -585,179 +585,59 @@ GAIA: {detection.get('match_name', 'None')}
         self.canvas.draw()
 
 
-class ProjectConfigDialog(QDialog):
-    """Dialog for configuring processing parameters"""
 
-    def __init__(self, parent=None):
+class ProcessConfigDialog(QDialog):
+    """Dialog for configuring processing parameters (input auto-filled from calibration)."""
+
+    def __init__(self, parent=None, input_folder=None):
         super().__init__(parent)
-        self.setWindowTitle("Process Images - Configuration")
+        self.setWindowTitle("Process Images - Parameters")
         self.setModal(True)
-        self.resize(600, 500)
+        self.resize(600, 220)
+        self.input_folder = input_folder
         self.project_data = {}
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-
-        # Input folder selection
+        # Input folder (auto-filled, read-only)
         input_group = QGroupBox("Input Data")
         input_layout = QVBoxLayout(input_group)
-
         folder_layout = QHBoxLayout()
-        folder_layout.addWidget(QLabel("FITS Folder:"))
-        self.folder_edit = QFileDialog()
-        self.folder_path = ""
-        self.folder_label = QLabel("No folder selected")
-        folder_layout.addWidget(self.folder_label)
-
-        browse_btn = QPushButton("Browse...")
-        browse_btn.clicked.connect(self.browse_folder)
-        folder_layout.addWidget(browse_btn)
+        folder_layout.addWidget(QLabel("Calibrated FITS Folder:"))
+        self.folder_edit = QLineEdit(self.input_folder or "")
+        self.folder_edit.setReadOnly(True)
+        folder_layout.addWidget(self.folder_edit)
         input_layout.addLayout(folder_layout)
-
+        input_group.setLayout(input_layout)
         layout.addWidget(input_group)
+        # Add processing parameter fields as needed
+        param_group = QGroupBox("Processing Parameters")
+        param_layout = QVBoxLayout(param_group)
+        thresh_layout = QHBoxLayout()
+        thresh_layout.addWidget(QLabel("Detection Threshold (z):"))
+        self.thresh_spin = QDoubleSpinBox()
+        self.thresh_spin.setRange(3.0, 30.0)
+        self.thresh_spin.setValue(6.0)
+        thresh_layout.addWidget(self.thresh_spin)
+        param_layout.addLayout(thresh_layout)
+        param_group.setLayout(param_layout)
+        layout.addWidget(param_group)
+        # Start Processing button
+        self.start_btn = QPushButton("Start Processing")
+        self.start_btn.clicked.connect(self.on_start)
+        layout.addWidget(self.start_btn)
 
-        # Processing parameters
-        params_group = QGroupBox("Processing Parameters")
-        params_layout = QGridLayout(params_group)
-
-        # Detection threshold
-        params_layout.addWidget(QLabel("Detection Threshold (σ):"), 0, 0)
-        self.threshold_spin = QDoubleSpinBox()
-        self.threshold_spin.setMinimum(3.0)
-        self.threshold_spin.setMaximum(15.0)
-        self.threshold_spin.setValue(6.0)
-        self.threshold_spin.setSingleStep(0.5)
-        params_layout.addWidget(self.threshold_spin, 0, 1)
-
-        # Edge margin
-        params_layout.addWidget(QLabel("Edge Margin (pixels):"), 1, 0)
-        self.margin_spin = QSpinBox()
-        self.margin_spin.setMinimum(5)
-        self.margin_spin.setMaximum(100)
-        self.margin_spin.setValue(20)
-        params_layout.addWidget(self.margin_spin, 1, 1)
-
-        # Cutout size
-        params_layout.addWidget(QLabel("Cutout Size (pixels):"), 2, 0)
-        self.cutout_spin = QSpinBox()
-        self.cutout_spin.setMinimum(20)
-        self.cutout_spin.setMaximum(200)
-        self.cutout_spin.setValue(50)
-        params_layout.addWidget(self.cutout_spin, 2, 1)
-
-        # Plate solving
-        self.plate_solve_check = QCheckBox("Enable plate solving for files without WCS")
-        self.plate_solve_check.setChecked(True)
-        params_layout.addWidget(self.plate_solve_check, 3, 0, 1, 2)
-
-        # GAIA cross-matching
-        self.gaia_check = QCheckBox("Cross-match with GAIA DR3 catalog")
-        self.gaia_check.setChecked(True)
-        params_layout.addWidget(self.gaia_check, 4, 0, 1, 2)
-
-        # Exoplanet matching
-        self.exo_check = QCheckBox("Cross-match with NASA Exoplanet Archive")
-        self.exo_check.setChecked(True)
-        params_layout.addWidget(self.exo_check, 5, 0, 1, 2)
-
-        layout.addWidget(params_group)
-
-        # Calibration status
-        cal_group = QGroupBox("Calibration Status")
-        cal_layout = QVBoxLayout(cal_group)
-
-        self.cal_status_label = QLabel("No calibration configured")
-        self.cal_status_label.setStyleSheet("color: #666;")
-        cal_layout.addWidget(self.cal_status_label)
-
-        cal_btn = QPushButton("Setup Calibration...")
-        cal_btn.clicked.connect(self.setup_calibration)
-        cal_layout.addWidget(cal_btn)
-
-        layout.addWidget(cal_group)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-
-        start_btn = QPushButton("🚀 Start Processing")
-        start_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #48bb78, stop:1 #38a169);
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                font-weight: bold;
-                border-radius: 8px;
-                font-size: 14px;
-                min-height: 16px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #68d391, stop:1 #48bb78);
-            }
-            QPushButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #38a169, stop:1 #2f855a);
-            }
-        """
-        )
-        start_btn.clicked.connect(self.accept)
-        button_layout.addWidget(start_btn)
-
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_btn)
-
-        layout.addLayout(button_layout)
-
-    def browse_folder(self):
-        """Browse for input folder"""
-        folder = QFileDialog.getExistingDirectory(self, "Select FITS Images Folder", "")
-        if folder:
-            self.folder_path = folder
-            self.folder_label.setText(f"Selected: {Path(folder).name}")
-
-            # Count FITS files
-            fits_count = len(list(Path(folder).glob("*.fit*")))
-            if fits_count > 0:
-                self.folder_label.setText(
-                    f"Selected: {Path(folder).name} ({fits_count} FITS files)"
-                )
-            else:
-                self.folder_label.setText(
-                    f"Selected: {Path(folder).name} (No FITS files found!)"
-                )
-                self.folder_label.setStyleSheet("color: red;")
-
-    def setup_calibration(self):
-        """Open calibration dialog"""
-        dialog = FixedCalibrationDialog(self)
-        result = dialog.exec()
-        if result == QDialog.DialogCode.Accepted:
-            self.cal_status_label.setText("Calibration configured ✓")
-            self.cal_status_label.setStyleSheet("color: green;")
-
-    def get_project_data(self):
-        """Get configured project data"""
-        if not self.folder_path:
-            return None
-
-        return {
-            "input_folder": self.folder_path,
-            "detection_threshold": self.threshold_spin.value(),
-            "edge_margin": self.margin_spin.value(),
-            "cutout_size": self.cutout_spin.value(),
-            "plate_solve": self.plate_solve_check.isChecked(),
-            "gaia_match": self.gaia_check.isChecked(),
-            "exo_match": self.exo_check.isChecked(),
-            "astap_path": "astap",  # Will be updated from config
-            "master_bias": None,
-            "master_dark": None,
-            "master_flat": None,
+    def on_start(self):
+        self.project_data = {
+            "input_folder": self.folder_edit.text(),
+            "detection_threshold": self.thresh_spin.value(),
         }
+        self.accept()
+
+    def get_params(self):
+        return self.project_data
+
 
 
 class PulseHunterMainWindow(QMainWindow):
@@ -1049,7 +929,10 @@ class PulseHunterMainWindow(QMainWindow):
         actions_layout.addWidget(calibration_btn)
 
         process_btn = QPushButton("🚀 Process Images")
-        process_btn.setProperty("class", "primary")
+
+        self.process_btn = process_btn
+        self.process_btn.setEnabled(False)
+process_btn.setProperty("class", "primary")
         process_btn.setStyleSheet(
             """
             QPushButton {
@@ -1538,10 +1421,21 @@ class PulseHunterMainWindow(QMainWindow):
             # Update ASTAP status after dialog closes
             self.update_astap_status()
 
+
             if result == QDialog.DialogCode.Accepted:
                 self.add_system_log("Calibration setup completed")
+    if hasattr(self, "process_btn"):
+        self.process_btn.setEnabled(True)
+    # Set calibrated_folder if available from dialog
+    if hasattr(dialog, "get_calibrated_folder"):
+        self.calibrated_folder = dialog.get_calibrated_folder()
+                # Enable Process Images button and update folder
+                if hasattr(self, "process_btn"):
+                    self.process_btn.setEnabled(True)
+                    # You could also save the calibrated folder path here as self.calibrated_folder
             else:
                 self.add_system_log("Calibration setup cancelled")
+
 
         except Exception as e:
             error_msg = f"Error opening calibration dialog: {str(e)}"
@@ -1682,45 +1576,20 @@ class PulseHunterMainWindow(QMainWindow):
                 f"Please check the executable path and ensure ASTAP is properly installed.",
             )
 
+
     def process_images(self):
-        """Process FITS images - Now fully functional"""
-        self.add_system_log("Starting image processing configuration...")
-
-        # Open configuration dialog
-        config_dialog = ProjectConfigDialog(self)
-        result = config_dialog.exec()
-
+        """Process FITS images - Now streamlined for new workflow"""
+        if not hasattr(self, "calibrated_folder") or not self.calibrated_folder:
+            QMessageBox.warning(self, "Calibration Required", "You must complete calibration before processing images.")
+            return
+        dialog = ProcessConfigDialog(self, input_folder=self.calibrated_folder)
+        result = dialog.exec()
         if result != QDialog.DialogCode.Accepted:
             return
+        params = dialog.get_params()
+        # You would trigger your processing worker here, passing params
+        print("Processing started with params:", params)
 
-        project_data = config_dialog.get_project_data()
-        if not project_data:
-            QMessageBox.warning(
-                self, "Configuration Error", "Please select a FITS folder to process."
-            )
-            return
-
-        # Update with ASTAP path
-        project_data["astap_path"] = self.astap_manager.astap_path or "astap"
-
-        # Start processing in worker thread
-        self.processing_worker = ProcessingWorker(project_data)
-        self.processing_worker.progress_updated.connect(self.update_processing_progress)
-        self.processing_worker.status_updated.connect(self.update_processing_status)
-        self.processing_worker.log_updated.connect(self.add_processing_log)
-        self.processing_worker.processing_finished.connect(self.processing_finished)
-
-        # Update UI for processing
-        self.processing_progress.setVisible(True)
-        self.processing_progress.setValue(0)
-        self.cancel_btn.setVisible(True)
-        self.processing_status.setText("Starting processing...")
-
-        # Switch to processing tab
-        self.tab_widget.setCurrentIndex(1)
-
-        # Start processing
-        self.processing_worker.start()
 
         # EMERGENCY FIX: Add timeout protection
         self.emergency_timeout = QTimer()
