@@ -199,9 +199,13 @@ class DetectionViewer(QWidget):
         self.min_z_spin.setValue(6)
         self.min_z_spin.valueChanged.connect(self.update_display)
         controls.addWidget(self.min_z_spin)
-
         controls.addStretch()
-        layout.addLayout(controls)
+
+        # --- PATCH: controls bar is now in a fixed-height widget
+        controls_widget = QWidget()
+        controls_widget.setLayout(controls)
+        controls_widget.setFixedHeight(40)  # or adjust as needed
+        layout.addWidget(controls_widget)
 
         # Results table
         self.table = QTableWidget()
@@ -318,6 +322,121 @@ class PulseHunterMainWindow(QMainWindow):
         self.setup_ui()
         self.setup_menus()
         self.restore_settings()
+
+        # --- PulseHunter Web Theme QSS ---
+        self.setStyleSheet(
+            """
+            QWidget {
+                background-color: #151c2b;
+                color: #e0e6f0;
+                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+                font-size: 15px;
+            }
+            QMainWindow, QDialog, QTabWidget::pane {
+                background: #181e2f;
+                border-radius: 16px;
+            }
+            QGroupBox {
+                background: #202942;
+                border: 1px solid #297fff;
+                border-radius: 12px;
+                margin-top: 18px;
+                padding: 10px;
+            }
+            QGroupBox:title {
+                color: #68a0ff;
+                padding-left: 8px;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            QLabel {
+                color: #e6ebff;
+            }
+            QPushButton {
+                background-color: #297fff;
+                color: #f7faff;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 20px;
+                font-weight: 600;
+                font-size: 15px;
+                transition: background 0.2s;
+            }
+            QPushButton:hover {
+                background-color: #379fff;
+            }
+            QPushButton:pressed {
+                background-color: #235db2;
+            }
+            QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+                background: #232d43;
+                color: #e0e6f0;
+                border: 1px solid #297fff;
+                border-radius: 7px;
+                padding: 4px 8px;
+            }
+            QProgressBar {
+                background: #232d43;
+                color: #68a0ff;
+                border: 1px solid #297fff;
+                border-radius: 7px;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #297fff;
+                border-radius: 7px;
+            }
+            QTableWidget, QHeaderView::section {
+                background: #181e2f;
+                color: #e0e6f0;
+                border: 1px solid #297fff;
+            }
+            QTabWidget::pane {
+                border-top: 2px solid #297fff;
+                top: -1.5em;
+            }
+            QTabBar::tab {
+                background: #202942;
+                color: #b68ff9;
+                border-radius: 9px 9px 0 0;
+                padding: 7px 25px;
+                margin-right: 4px;
+                font-weight: 500;
+            }
+            QTabBar::tab:selected, QTabBar::tab:hover {
+                background: #232d43;
+                color: #f7faff;
+            }
+            QScrollBar:vertical, QScrollBar:horizontal {
+                background: #232d43;
+                border: none;
+                width: 12px;
+                margin: 0px 0px 0px 0px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+                background: #379fff;
+                min-height: 24px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line, QScrollBar::sub-line {
+                background: none;
+                border: none;
+            }
+            QFrame {
+                background: #202942;
+                border-radius: 12px;
+                border: 1px solid #232d43;
+            }
+        """
+        )
+        # Optionally set global font for more consistency
+        from PyQt6.QtGui import QFont
+
+        font = QFont("Segoe UI", 10)
+        from PyQt6.QtWidgets import QApplication
+
+        QApplication.instance().setFont(font)
 
     def setup_ui(self):
         """Setup the user interface"""
