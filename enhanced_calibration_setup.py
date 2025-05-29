@@ -1,6 +1,7 @@
 """
 Updated PulseHunter Core Module with Enhanced Calibration Integration
 Astronomy transient detection and analysis toolkit
+Updated for Windows compatibility and enhanced error handling
 """
 
 import json

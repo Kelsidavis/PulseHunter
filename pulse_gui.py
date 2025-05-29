@@ -74,6 +74,32 @@ from fits_processing import CalibrationProcessor, FITSProcessor
 # Import PulseHunter components
 from fixed_calibration_dialog import FixedCalibrationDialog
 
+import auto_calibration_manager
+# Enhanced calibration imports with fallback
+try:
+    from calibration_integration import smart_load_fits_stack as enhanced_load_fits_stack, AutoCalibrationManager
+    print("✅ Using enhanced calibration system")
+    ENHANCED_CALIBRATION_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Enhanced calibration not available: {e}")
+    try:
+        from auto_calibration_manager import enhanced_load_fits_stack, AutoCalibrationManager
+        print("✅ Using basic calibration system")
+        ENHANCED_CALIBRATION_AVAILABLE = False
+    except ImportError:
+        print("❌ No calibration system available - using fallback")
+        ENHANCED_CALIBRATION_AVAILABLE = False
+        
+        def enhanced_load_fits_stack(*args, **kwargs):
+            print("❌ No enhanced calibration available!")
+            return [], [], []
+        
+        class AutoCalibrationManager:
+            def __init__(self):
+                pass
+            def get_master_files_for_folder(self, folder):
+                return {}
+
 
 class ProcessingWorker(QThread):
     """Worker thread for image processing to prevent GUI freezing - Updated version"""
@@ -529,7 +555,7 @@ GAIA: {detection.get('match_name', 'None')}
         """
 
         if detection.get("g_mag"):
-            details += f"G Magnitude: {detection.get('g_mag'):.2f}\nfrom auto_calibration_manager import enhanced_load_fits_stack, AutoCalibrationManager\n"
+            details += f"G Magnitude: {detection.get('g_mag'):.2f}\n"
 
         if detection.get("exo_match"):
             exo = detection["exo_match"]
