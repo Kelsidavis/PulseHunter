@@ -208,242 +208,52 @@ class CalibrationProcessor:
             frames_data = []
             valid_files = []
 
+            total_files = len(input_files)
             for i, file_path in enumerate(input_files):
+                # Progress per-frame, up to 90% of total
                 if progress_callback:
-                    progress_callback(
-                        int((i / len(input_files)) * 50)
-                    )  # First 50% for reading
-
+                    percent = int((i / max(total_files, 1)) * 90)
+                    progress_callback(percent)
                 fits_info = self.fits_processor.read_fits_file(file_path)
                 if fits_info and fits_info["data"] is not None:
                     frames_data.append(fits_info["data"])
                     valid_files.append(file_path)
                     self.logger.debug(f"Loaded: {file_path.name}")
-                else:
-                    self.logger.warning(f"Failed to load: {file_path}")
 
-            if not frames_data:
-                self.logger.error("No valid frames loaded")
+            if len(frames_data) < 1:
+                self.logger.error("No valid input files found for calibration")
+                if progress_callback:
+                    progress_callback(100)
                 return False
 
-            self.logger.info(f"Loaded {len(frames_data)} valid frames")
-
-            # Validate consistency
-            if not self._validate_frame_consistency(valid_files, calibration_type):
-                self.logger.warning(
-                    "Frame consistency validation failed, proceeding anyway"
-                )
-
-            # Create master frame
+            # Stack/Combine
+            if calibration_type in ["bias", "dark", "flat", "dark_flat"]:
+                combined = np.median(frames_data, axis=0)
+            else:
+                combined = np.median(frames_data, axis=0)
+            # After stacking, advance to 95%
             if progress_callback:
-                progress_callback(60)
+                progress_callback(95)
 
-            master_data = self._combine_frames(frames_data, calibration_type)
-
-            if progress_callback:
-                progress_callback(80)
-
-            # Save master frame
-            success = self._save_master_frame(
-                master_data, output_file, calibration_type, valid_files
+            # Save to output file
+            primary_header = fits.getheader(str(valid_files[0]))
+            now = datetime.now().isoformat()
+            primary_header.add_history(
+                f"PulseHunter master {calibration_type} created from {len(valid_files)} frames on {now}"
             )
 
+            fits.writeto(output_file, combined, primary_header, overwrite=True)
             if progress_callback:
                 progress_callback(100)
 
-            if success:
-                self.logger.info(
-                    f"Master {calibration_type} created successfully: {output_file}"
-                )
-
-            return success
+            self.logger.info(f"✅ Master {calibration_type} saved: {output_file}")
+            return True
 
         except Exception as e:
-            self.logger.error(f"Error creating master calibration: {e}")
+            self.logger.error(f"Error creating master {calibration_type}: {e}")
+            if progress_callback:
+                progress_callback(100)
             return False
-
-    def _validate_frame_consistency(
-        self, files: List[Path], calibration_type: str
-    ) -> bool:
-        """Validate that all frames are consistent"""
-        if not files:
-            return False
-
-        # Read first file as reference
-        ref_info = self.fits_processor.read_fits_file(files[0])
-        if not ref_info:
-            return False
-
-        ref_dimensions = ref_info["dimensions"]
-        ref_exposure = ref_info["exposure_time"]
-        ref_binning = ref_info["binning"]
-
-        inconsistent_count = 0
-
-        for file_path in files[1:]:
-            fits_info = self.fits_processor.read_fits_file(file_path)
-            if not fits_info:
-                inconsistent_count += 1
-                continue
-
-            # Check dimensions
-            if fits_info["dimensions"] != ref_dimensions:
-                self.logger.warning(
-                    f"Dimension mismatch in {file_path.name}: {fits_info['dimensions']} vs {ref_dimensions}"
-                )
-                inconsistent_count += 1
-
-            # Check exposure time (for darks)
-            if calibration_type.lower() in ["dark", "dark_flat"]:
-                exp_diff = abs(fits_info["exposure_time"] - ref_exposure)
-                if exp_diff > self.config.getfloat(
-                    "VALIDATION", "max_exposure_variance", 0.1
-                ):
-                    self.logger.warning(
-                        f"Exposure time mismatch in {file_path.name}: {fits_info['exposure_time']}s vs {ref_exposure}s"
-                    )
-                    inconsistent_count += 1
-
-            # Check binning
-            if fits_info["binning"] != ref_binning:
-                self.logger.warning(
-                    f"Binning mismatch in {file_path.name}: {fits_info['binning']} vs {ref_binning}"
-                )
-                inconsistent_count += 1
-
-        consistency_ratio = 1.0 - (inconsistent_count / len(files))
-        self.logger.info(f"Frame consistency: {consistency_ratio:.1%}")
-
-        return consistency_ratio > 0.8  # 80% consistency threshold
-
-    def _combine_frames(
-        self, frames_data: List[np.ndarray], calibration_type: str
-    ) -> np.ndarray:
-        """Combine multiple frames into master frame"""
-        combination_method = self.config.get(
-            "PROCESSING", "combination_method", "median"
-        )
-
-        self.logger.info(
-            f"Combining {len(frames_data)} frames using {combination_method} method"
-        )
-
-        # Stack frames
-        frame_stack = np.stack(frames_data, axis=0)
-
-        if combination_method == "median":
-            master_frame = np.median(frame_stack, axis=0)
-        elif combination_method == "mean":
-            master_frame = np.mean(frame_stack, axis=0)
-        elif combination_method == "sigma_clipped_mean":
-            if ASTROPY_AVAILABLE:
-                sigma_threshold = self.config.getfloat(
-                    "PROCESSING", "sigma_clipping_threshold", 3.0
-                )
-                clipped_stack = sigma_clip(frame_stack, sigma=sigma_threshold, axis=0)
-                master_frame = np.ma.mean(clipped_stack, axis=0).filled(0)
-            else:
-                # Fallback to regular mean
-                master_frame = np.mean(frame_stack, axis=0)
-        else:
-            self.logger.warning(
-                f"Unknown combination method: {combination_method}, using median"
-            )
-            master_frame = np.median(frame_stack, axis=0)
-
-        # Ensure output data type matches input
-        if frames_data:
-            master_frame = master_frame.astype(frames_data[0].dtype)
-
-        return master_frame
-
-    def _save_master_frame(
-        self,
-        data: np.ndarray,
-        output_file: Path,
-        calibration_type: str,
-        input_files: List[Path],
-    ) -> bool:
-        """Save master frame to FITS file"""
-        try:
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-
-            if ASTROPY_AVAILABLE:
-                return self._save_with_astropy(
-                    data, output_file, calibration_type, input_files
-                )
-            else:
-                return self._save_simulated(
-                    data, output_file, calibration_type, input_files
-                )
-
-        except Exception as e:
-            self.logger.error(f"Error saving master frame: {e}")
-            return False
-
-    def _save_with_astropy(
-        self,
-        data: np.ndarray,
-        output_file: Path,
-        calibration_type: str,
-        input_files: List[Path],
-    ) -> bool:
-        """Save using astropy"""
-        # Create header
-        header = fits.Header()
-        header["IMAGETYP"] = f"MASTER_{calibration_type.upper()}"
-        header["CREATOR"] = "PulseHunter Enhanced Calibration"
-        header["DATE"] = datetime.now().isoformat()
-        header["NFRAMES"] = len(input_files)
-        header["COMBMETH"] = self.config.get(
-            "PROCESSING", "combination_method", "median"
-        )
-
-        # Add statistics
-        mean, median, std = sigma_clipped_stats(data, sigma=3.0)
-        header["DATAMEAN"] = float(mean)
-        header["DATAMED"] = float(median)
-        header["DATASTD"] = float(std)
-        header["DATAMIN"] = float(np.min(data))
-        header["DATAMAX"] = float(np.max(data))
-
-        # Add processing history
-        header.add_history(f"Created from {len(input_files)} {calibration_type} frames")
-        header.add_history(f"Combination method: {header['COMBMETH']}")
-
-        # Create HDU and save
-        hdu = fits.PrimaryHDU(data, header=header)
-        hdu.writeto(output_file, overwrite=True)
-
-        return True
-
-    def _save_simulated(
-        self,
-        data: np.ndarray,
-        output_file: Path,
-        calibration_type: str,
-        input_files: List[Path],
-    ) -> bool:
-        """Simulate saving for testing without astropy"""
-        # Create a simple text file with metadata (for testing)
-        metadata_file = output_file.with_suffix(".txt")
-
-        with open(metadata_file, "w") as f:
-            f.write(f"PulseHunter Master Calibration File (Simulated)\n")
-            f.write(f"Type: {calibration_type}\n")
-            f.write(f"Created: {datetime.now().isoformat()}\n")
-            f.write(f"Input files: {len(input_files)}\n")
-            f.write(f"Data shape: {data.shape}\n")
-            f.write(f"Data type: {data.dtype}\n")
-            f.write(f"Mean: {np.mean(data):.2f}\n")
-            f.write(f"Median: {np.median(data):.2f}\n")
-            f.write(f"Std: {np.std(data):.2f}\n")
-
-        # Save data as numpy array
-        np.save(output_file.with_suffix(".npy"), data)
-
-        self.logger.info(f"Simulated save: {output_file} (metadata: {metadata_file})")
-        return True
 
 
 class ImageAnalyzer:
