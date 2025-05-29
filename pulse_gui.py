@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
-matplotlib.use("QtAgg") 
+
+matplotlib.use("QtAgg")
 
 # Import matplotlib for plotting
 import matplotlib.pyplot as plt
@@ -65,6 +66,8 @@ from PyQt6.QtWidgets import (
 )
 
 import pulsehunter_core
+from calibration_integration import AutoCalibrationManager
+from calibration_integration import smart_load_fits_stack as enhanced_load_fits_stack
 from calibration_utilities import (
     ASTAPManager,
     CalibrationConfig,
@@ -77,9 +80,9 @@ from fits_processing import CalibrationProcessor, FITSProcessor
 # Import PulseHunter components
 from fixed_calibration_dialog import FixedCalibrationDialog
 
-from calibration_integration import smart_load_fits_stack as enhanced_load_fits_stack, AutoCalibrationManager
 ENHANCED_CALIBRATION_AVAILABLE = True
 print("✅ Using enhanced calibration system (required)")
+
 
 class ProcessingWorker(QThread):
     """Worker thread for image processing to prevent GUI freezing - Updated version"""

@@ -100,7 +100,7 @@ class CalibrationWorker(QThread):
         self.is_cancelled = False
         self.master_files = {}
 
-    
+
 def run(self):
     from concurrent.futures import ThreadPoolExecutor
 
@@ -127,14 +127,20 @@ def run(self):
                 return
 
             def progress_callback(value):
-                overall_progress = int((completed_tasks / total_tasks) * 100 + (value / total_tasks))
+                overall_progress = int(
+                    (completed_tasks / total_tasks) * 100 + (value / total_tasks)
+                )
                 self.progress_updated.emit(overall_progress)
 
-            success = processor.create_master_calibration(input_files, output_file, cal_type, progress_callback)
+            success = processor.create_master_calibration(
+                input_files, output_file, cal_type, progress_callback
+            )
 
             if success:
                 self.master_files[cal_type] = str(output_file)
-                self.log_updated.emit(f"✅ Master {cal_type} created: {output_file.name}")
+                self.log_updated.emit(
+                    f"✅ Master {cal_type} created: {output_file.name}"
+                )
             else:
                 self.log_updated.emit(f"❌ Failed to create master {cal_type}")
             completed_tasks += 1
@@ -151,7 +157,7 @@ def run(self):
         error_msg = f"Calibration processing error: {str(e)}"
         self.log_updated.emit(f"ERROR: {error_msg}")
         self.finished.emit(False, error_msg, {})
-    
+
 
 class FixedCalibrationDialog(QDialog):
     """Fixed calibration dialog with lights folder selection and automatic master usage"""

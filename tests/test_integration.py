@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from astropy.io import fits
-
 from calibration import create_master_frame, generate_lightcurve_outputs
+
 from exoplanet_match import match_transits_with_exoplanets
 from pulsehunter_core import (
     crossmatch_with_gaia,

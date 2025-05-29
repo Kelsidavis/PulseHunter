@@ -20,13 +20,19 @@ from astroquery.gaia import Gaia
 # Import Qt components with safety check
 try:
     from PySide6.QtWidgets import QApplication, QMessageBox
+
     QT_AVAILABLE = True
 except ImportError:
     QT_AVAILABLE = False
 
 # Import enhanced calibration with fallback
 try:
-    from calibration_integration import smart_load_fits_stack, get_calibration_info, print_calibration_status
+    from calibration_integration import (
+        get_calibration_info,
+        print_calibration_status,
+        smart_load_fits_stack,
+    )
+
     ENHANCED_CALIBRATION_AVAILABLE = True
     print("✅ Enhanced calibration system loaded")
 except ImportError as e:
@@ -95,14 +101,14 @@ def load_fits_stack(
     filter_name=None,
     progress_callback=None,
     auto_calibrate=True,
-    **kwargs
+    **kwargs,
 ):
     """
     Enhanced FITS stack loading with automatic calibration detection
-    
+
     This function now uses the enhanced calibration system when available,
     with fallback to basic loading for compatibility.
-    
+
     Args:
         folder (str): Directory containing FITS files
         plate_solve_missing (bool): Whether to plate solve files without WCS
@@ -115,21 +121,21 @@ def load_fits_stack(
         progress_callback (callable): Optional progress callback function
         auto_calibrate (bool): Whether to automatically detect and apply calibration
         **kwargs: Additional arguments
-        
+
     Returns:
         tuple: (frames array, filenames list, wcs_objects list)
     """
     print(f"🔄 Loading FITS stack from: {folder}")
-    
+
     # Use enhanced loading if available
     if ENHANCED_CALIBRATION_AVAILABLE:
         try:
             print("✨ Using enhanced calibration system...")
-            
+
             # Show calibration status if requested
             if auto_calibrate:
                 print_calibration_status(folder)
-            
+
             return smart_load_fits_stack(
                 folder=folder,
                 plate_solve_missing=plate_solve_missing,
@@ -139,12 +145,12 @@ def load_fits_stack(
                 manual_master_dark=master_dark,
                 manual_master_flat=master_flat,
                 progress_callback=progress_callback,
-                **kwargs
+                **kwargs,
             )
         except Exception as e:
             print(f"⚠️ Enhanced loading failed: {e}")
             print("Falling back to basic loading...")
-    
+
     # Fallback to basic loading
     return _basic_load_fits_stack(
         folder=folder,
@@ -155,7 +161,7 @@ def load_fits_stack(
         master_flat=master_flat,
         camera_mode=camera_mode,
         filter_name=filter_name,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -173,14 +179,16 @@ def _basic_load_fits_stack(
     Basic FITS stack loading (original implementation)
     """
     from concurrent.futures import ThreadPoolExecutor
-    
+
     frames, filenames, wcs_objects = [], [], []
 
     if not os.path.exists(folder):
         print(f"Error: Folder {folder} does not exist")
         return np.array([]), [], []
 
-    fits_files = [f for f in sorted(os.listdir(folder)) if f.endswith((".fits", ".fit", ".fts"))]
+    fits_files = [
+        f for f in sorted(os.listdir(folder)) if f.endswith((".fits", ".fit", ".fts"))
+    ]
     if not fits_files:
         print(f"No FITS files found in {folder}")
         return np.array([]), [], []
@@ -193,7 +201,7 @@ def _basic_load_fits_stack(
             # Check for existing WCS
             hdr = fits.getheader(path)
             has_wcs = "CRVAL1" in hdr and "CRVAL2" in hdr
-            
+
             # Plate solve if requested
             if plate_solve_missing and not has_wcs:
                 plate_solve_astap(path, astap_exe)
@@ -214,7 +222,7 @@ def _basic_load_fits_stack(
 
             # Create WCS object
             wcs = WCS(header) if "CRVAL1" in header and "CRVAL2" in header else None
-            
+
             return (data, file, wcs)
         except Exception as e:
             print(f"Error loading {file}: {e}")
@@ -228,7 +236,7 @@ def _basic_load_fits_stack(
         return np.array([]), [], []
 
     frames, filenames, wcs_objects = zip(*results)
-    
+
     print(f"✅ Loaded {len(frames)} frames")
     return np.array(frames), list(filenames), list(wcs_objects)
 
@@ -243,11 +251,11 @@ def enhanced_load_fits_stack(
     manual_master_dark=None,
     manual_master_flat=None,
     progress_callback=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Enhanced FITS loading with automatic calibration (alias for compatibility)
-    
+
     This is an alias to the smart_load_fits_stack function from the calibration
     integration module, maintaining compatibility with existing code.
     """
@@ -261,7 +269,7 @@ def enhanced_load_fits_stack(
             manual_master_dark=manual_master_dark,
             manual_master_flat=manual_master_flat,
             progress_callback=progress_callback,
-            **kwargs
+            **kwargs,
         )
     else:
         # Fall back to basic loading
@@ -272,7 +280,7 @@ def enhanced_load_fits_stack(
             master_bias=manual_master_bias,
             master_dark=manual_master_dark,
             master_flat=manual_master_flat,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -314,15 +322,15 @@ def detect_transients(
     os.makedirs(output_dir, exist_ok=True)
 
     print(f"Analyzing {len(frames)} frames for transients...")
-    
+
     # Update progress
     if progress_callback:
         progress_callback(10)
-    
+
     # Calculate statistical reference images
     mean_image = np.mean(frames, axis=0)
     std_image = np.std(frames, axis=0)
-    
+
     if progress_callback:
         progress_callback(30)
 
@@ -331,11 +339,12 @@ def detect_transients(
         z = (frame - mean_image) / (std_image + 1e-5)
         y, x = np.unravel_index(np.argmax(np.abs(z)), z.shape)
         value = z[y, x]
-        
-        if (abs(value) > z_thresh and 
-            edge_margin < x < z.shape[1] - edge_margin and 
-            edge_margin < y < z.shape[0] - edge_margin):
-            
+
+        if (
+            abs(value) > z_thresh
+            and edge_margin < x < z.shape[1] - edge_margin
+            and edge_margin < y < z.shape[0] - edge_margin
+        ):
             # Create cutout image
             y1 = max(0, y - cutout_size // 2)
             y2 = min(frame.shape[0], y + cutout_size // 2)
@@ -359,7 +368,7 @@ def detect_transients(
             # Save cutout
             out_path = os.path.join(output_dir, f"detection_{i:04d}.png")
             cv2.imwrite(out_path, cutout_img)
-            
+
             # Calculate celestial coordinates
             wcs = wcs_objects[i]
             ra_deg, dec_deg = (None, None)
@@ -402,11 +411,15 @@ def detect_transients(
     # Process frames in parallel with progress updates
     detections = []
     with ThreadPoolExecutor() as executor:
-        for i, result in enumerate(executor.map(process_single_frame, range(len(frames)))):
+        for i, result in enumerate(
+            executor.map(process_single_frame, range(len(frames)))
+        ):
             if result is not None:
                 detections.append(result)
-                print(f"Detection {len(detections)}: z={result['z_score']:.1f} at ({result['x']},{result['y']})")
-            
+                print(
+                    f"Detection {len(detections)}: z={result['z_score']:.1f} at ({result['x']},{result['y']})"
+                )
+
             # Update progress
             if progress_callback:
                 progress = 30 + int((i / len(frames)) * 50)
@@ -438,11 +451,13 @@ def crossmatch_with_gaia(detections, radius_arcsec=5.0, progress_callback=None):
 
     for i, det in enumerate(detections):
         if det["ra_deg"] is None or det["dec_deg"] is None:
-            det.update({
-                "match_name": None,
-                "object_type": None,
-                "angular_distance_arcsec": None,
-            })
+            det.update(
+                {
+                    "match_name": None,
+                    "object_type": None,
+                    "angular_distance_arcsec": None,
+                }
+            )
             matched.append(det)
             continue
 
@@ -476,32 +491,40 @@ def crossmatch_with_gaia(detections, radius_arcsec=5.0, progress_callback=None):
                 parallax = float(r["parallax"]) if r["parallax"] else 0
                 distance_pc = round(1000.0 / parallax, 2) if parallax > 0 else -1
 
-                det.update({
-                    "match_name": f"GAIA DR3 {r['source_id']}",
-                    "object_type": "Star",
-                    "angular_distance_arcsec": round(sep, 2),
-                    "g_mag": float(r["phot_g_mean_mag"]) if r["phot_g_mean_mag"] else None,
-                    "distance_pc": distance_pc,
-                })
+                det.update(
+                    {
+                        "match_name": f"GAIA DR3 {r['source_id']}",
+                        "object_type": "Star",
+                        "angular_distance_arcsec": round(sep, 2),
+                        "g_mag": float(r["phot_g_mean_mag"])
+                        if r["phot_g_mean_mag"]
+                        else None,
+                        "distance_pc": distance_pc,
+                    }
+                )
                 print(f'Detection {i+1}: Matched with Gaia source (sep={sep:.1f}")')
             else:
-                det.update({
-                    "match_name": None,
-                    "object_type": None,
-                    "angular_distance_arcsec": None,
-                })
+                det.update(
+                    {
+                        "match_name": None,
+                        "object_type": None,
+                        "angular_distance_arcsec": None,
+                    }
+                )
                 print(f"Detection {i+1}: No Gaia match found")
 
         except Exception as e:
             print(f"Gaia query failed for detection {i+1}: {e}")
-            det.update({
-                "match_name": None,
-                "object_type": None,
-                "angular_distance_arcsec": None,
-            })
+            det.update(
+                {
+                    "match_name": None,
+                    "object_type": None,
+                    "angular_distance_arcsec": None,
+                }
+            )
 
         matched.append(det)
-        
+
         # Update progress
         if progress_callback:
             progress = int((i / len(detections)) * 100)
@@ -668,10 +691,10 @@ def generate_summary_stats(detections):
 def validate_calibration_for_folder(lights_folder):
     """
     Validate calibration setup for a specific folder
-    
+
     Args:
         lights_folder (str): Path to lights folder
-        
+
     Returns:
         dict: Validation results
     """
@@ -683,7 +706,7 @@ def validate_calibration_for_folder(lights_folder):
     else:
         return {
             "enhanced_available": False,
-            "message": "Enhanced calibration not available - using basic calibration"
+            "message": "Enhanced calibration not available - using basic calibration",
         }
 
 
@@ -692,19 +715,21 @@ def print_system_status():
     print(f"\n{'='*60}")
     print("PULSEHUNTER SYSTEM STATUS")
     print(f"{'='*60}")
-    
-    print(f"Enhanced Calibration: {'✅ Available' if ENHANCED_CALIBRATION_AVAILABLE else '❌ Not Available'}")
+
+    print(
+        f"Enhanced Calibration: {'✅ Available' if ENHANCED_CALIBRATION_AVAILABLE else '❌ Not Available'}"
+    )
     print(f"Qt GUI Support: {'✅ Available' if QT_AVAILABLE else '❌ Not Available'}")
-    
+
     # Test key dependencies
     dependencies = {
         "Astropy": "astropy",
-        "OpenCV": "cv2", 
+        "OpenCV": "cv2",
         "NumPy": "numpy",
         "Requests": "requests",
-        "AstroQuery": "astroquery"
+        "AstroQuery": "astroquery",
     }
-    
+
     print(f"\nDependencies:")
     for name, module in dependencies.items():
         try:
@@ -712,13 +737,15 @@ def print_system_status():
             print(f"  ✅ {name}")
         except ImportError:
             print(f"  ❌ {name}")
-    
+
     print(f"\nAvailable Functions:")
-    print(f"  • load_fits_stack() - {'Enhanced' if ENHANCED_CALIBRATION_AVAILABLE else 'Basic'} FITS loading")
+    print(
+        f"  • load_fits_stack() - {'Enhanced' if ENHANCED_CALIBRATION_AVAILABLE else 'Basic'} FITS loading"
+    )
     print(f"  • detect_transients() - Transient detection with progress tracking")
     print(f"  • crossmatch_with_gaia() - GAIA catalog cross-matching")
     print(f"  • save_report() - Report generation and upload")
-    
+
     if ENHANCED_CALIBRATION_AVAILABLE:
         print(f"  • validate_calibration_for_folder() - Calibration validation")
         print(f"  • enhanced_load_fits_stack() - Advanced calibration loading")
@@ -728,18 +755,18 @@ if __name__ == "__main__":
     # Print system status when run directly
     print("🌌 PulseHunter Core Module - Enhanced Version")
     print_system_status()
-    
+
     # Test enhanced calibration if available
     if ENHANCED_CALIBRATION_AVAILABLE:
         print(f"\n{'='*60}")
         print("ENHANCED CALIBRATION TEST")
         print(f"{'='*60}")
-        
+
         test_folder = r"F:\astrophotography\2024-07-13 - bortle2 - sthelens"
         if os.path.exists(test_folder):
             print(f"Testing calibration with: {test_folder}")
             validation = validate_calibration_for_folder(test_folder)
-            
+
             if "error" not in validation:
                 print(f"✅ Calibration validation completed")
                 print(f"   Status: {validation.get('calibration_status', 'unknown')}")
@@ -748,5 +775,5 @@ if __name__ == "__main__":
                 print(f"❌ Validation failed: {validation['error']}")
         else:
             print("Test folder not found - update path to test with your data")
-    
+
     print(f"\n✅ PulseHunter Core ready for enhanced astronomical processing!")
