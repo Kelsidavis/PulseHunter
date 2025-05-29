@@ -336,6 +336,12 @@ class PulseHunterMainWindow(QMainWindow):
                 background: #181e2f;
                 border-radius: 16px;
             }
+            QTabWidget::pane {
+                border-top: 2px solid #297fff;
+                top: -1.5em;
+                padding-top: 32px;  /* Increased vertical space between tab bar and tab page */
+                margin-top: 0px;
+            }
             QGroupBox {
                 background: #202942;
                 border: 1px solid #297fff;
@@ -880,13 +886,33 @@ class PulseHunterMainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About PulseHunter",
-            "PulseHunter v1.0\n\n"
-            "Optical SETI and Exoplanet Detection Pipeline\n\n"
-            "Search for anomalies in astronomical images:\n"
-            "• Artificial signals (Optical SETI)\n"
-            "• Transiting exoplanets\n"
-            "• Variable stars and transients\n\n"
-            "© 2024 - Fixed and Functional Version",
+            (
+                "<div style='background:#151c2b;padding:12px 8px 12px 8px;'>"
+                "<h2 style='color:#297fff; margin: 0 0 8px 0; font-size: 1.6em;'>PulseHunter</h2>"
+                "<div style='color:#b68ff9;font-weight:bold; margin-bottom: 8px;'>"
+                "Optical SETI &amp; Exoplanet Detection Pipeline"
+                "</div>"
+                "<div style='color:#e0e6f0; margin-bottom:10px;'>"
+                "Automated search for:<br>"
+                "&nbsp;&nbsp;&bull; Artificial signals (Optical SETI)<br>"
+                "&nbsp;&nbsp;&bull; Transiting exoplanets<br>"
+                "&nbsp;&nbsp;&bull; Variable stars and transients"
+                "</div>"
+                "<div style='margin:14px 0 6px 0; font-size:1.08em;'>"
+                "<span style='color:#e0e6f0;'>Created by</span> "
+                "<span style='color:#68a0ff;font-weight:bold;'>Kelsi Davis</span>"
+                "</div>"
+                "<div style='margin-bottom:8px; font-size:0.98em;'>"
+                "<a href='https://geekastro.dev/pulsehunter/' style='color:#379fff; text-decoration:none;'>"
+                "🌐 Project Website</a><br>"
+                "<a href='https://github.com/Kelsidavis/PulseHunter' style='color:#b68ff9; text-decoration:none;'>"
+                "🐙 GitHub Repository</a>"
+                "</div>"
+                "<div style='margin-top:14px; color:#888; font-size:0.97em;'>"
+                "&copy; 2024 Kelsi Davis &mdash; All Rights Reserved"
+                "</div>"
+                "</div>"
+            ),
         )
 
     def restore_settings(self):
