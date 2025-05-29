@@ -206,48 +206,33 @@ def enhanced_load_fits_stack(
     max_workers: int = 4,
 ) -> Tuple[np.ndarray, List[str], List[Optional[WCS]]]:
     """
-    Enhanced FITS stack loading with automatic calibration detection and application
-
-    Args:
-        folder: Directory containing FITS files
-        plate_solve_missing: Whether to plate solve files without WCS
-        astap_exe: Path to ASTAP executable
-        auto_calibrate: Whether to automatically detect and apply calibration
-        manual_master_bias: Manual bias frame (overrides auto-detection)
-        manual_master_dark: Manual dark frame (overrides auto-detection)
-        manual_master_flat: Manual flat frame (overrides auto-detection)
-        progress_callback: Optional callback for progress updates
-        max_workers: Number of threads for parallel processing
-
-    Returns:
-        Tuple of (frames array, filenames list, wcs_objects list)
+    Enhanced FITS stack loading with automatic calibration detection and application.
+    Calibrated FITS are always written to ../calibrated_lights/.
     """
     logger = CalibrationLogger()
     logger.info(f"Enhanced FITS loading from: {folder}")
 
-    # Validate input folder
     folder_path = Path(folder)
     if not folder_path.exists():
         logger.error(f"Folder does not exist: {folder}")
         return np.array([]), [], []
 
-    # Find FITS files
     fits_files = []
     for ext in ["*.fits", "*.fit", "*.fts"]:
         fits_files.extend(folder_path.glob(ext))
-
     fits_files = sorted([f for f in fits_files if f.is_file()])
 
     if not fits_files:
         logger.error(f"No FITS files found in {folder}")
         return np.array([]), [], []
 
-    logger.info(f"Found {len(fits_files)} FITS files")
+    # Prepare output directory for calibrated lights
+    calibrated_dir = folder_path.parent / "calibrated_lights"
+    calibrated_dir.mkdir(exist_ok=True)
 
-    # Initialize calibration manager
+    # Initialize calibration manager for auto-detect
     cal_manager = AutoCalibrationManager()
 
-    # Load master calibration frames
     master_bias = manual_master_bias
     master_dark = manual_master_dark
     master_flat = manual_master_flat
@@ -257,23 +242,14 @@ def enhanced_load_fits_stack(
     ):
         logger.info("Auto-detecting calibration files...")
         master_files = cal_manager.get_master_files_for_folder(folder)
-
         if master_files:
             if master_bias is None and "bias" in master_files:
                 master_bias = cal_manager.load_master_frame(master_files["bias"])
-                logger.info("✅ Auto-loaded master bias")
-
             if master_dark is None and "dark" in master_files:
                 master_dark = cal_manager.load_master_frame(master_files["dark"])
-                logger.info("✅ Auto-loaded master dark")
-
             if master_flat is None and "flat" in master_files:
                 master_flat = cal_manager.load_master_frame(master_files["flat"])
-                logger.info("✅ Auto-loaded master flat")
-        else:
-            logger.info("No automatic calibration files found")
 
-    # Progress tracking
     total_files = len(fits_files)
     processed_files = 0
 
@@ -284,159 +260,56 @@ def enhanced_load_fits_stack(
             progress = int((processed_files / total_files) * 100)
             progress_callback(progress)
 
-    def load_single_fits(
-        fits_file: Path,
-    ) -> Optional[Tuple[np.ndarray, str, Optional[WCS]]]:
-        """Load a single FITS file with calibration"""
+    def calibrate_and_save(file_path):
         try:
-            # Read FITS file
-            with fits.open(fits_file) as hdul:
+            with fits.open(file_path) as hdul:
                 data = hdul[0].data.astype(np.float32)
-                header = hdul[0].header
-
-            # Check for existing WCS
-            has_wcs = "CRVAL1" in header and "CRVAL2" in header
-
-            # Plate solve if requested and missing WCS
-            if plate_solve_missing and not has_wcs:
-                try:
-                    import subprocess
-
-                    result = subprocess.run(
-                        [astap_exe, "-f", str(fits_file), "-solve"],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        timeout=30,
-                    )
-                    if result.returncode == 0:
-                        logger.debug(f"Plate solved: {fits_file.name}")
-                        # Re-read header to get WCS
-                        with fits.open(fits_file) as hdul:
-                            header = hdul[0].header
-                except Exception as e:
-                    logger.warning(f"Plate solving failed for {fits_file.name}: {e}")
-
-            # Apply calibration frames
-            calibrated_data = data.copy()
-
-            # Bias subtraction
-            if master_bias is not None:
-                try:
-                    if master_bias.shape == data.shape:
-                        calibrated_data = calibrated_data - master_bias
-                        logger.debug(f"Applied bias to {fits_file.name}")
-                    else:
-                        logger.warning(
-                            f"Bias frame shape mismatch for {fits_file.name}"
-                        )
-                except Exception as e:
-                    logger.error(f"Error applying bias to {fits_file.name}: {e}")
-
-            # Dark subtraction
-            if master_dark is not None:
-                try:
-                    if master_dark.shape == data.shape:
-                        calibrated_data = calibrated_data - master_dark
-                        logger.debug(f"Applied dark to {fits_file.name}")
-                    else:
-                        logger.warning(
-                            f"Dark frame shape mismatch for {fits_file.name}"
-                        )
-                except Exception as e:
-                    logger.error(f"Error applying dark to {fits_file.name}: {e}")
-
-            # Flat field correction
-            if master_flat is not None:
-                try:
-                    if master_flat.shape == data.shape and np.all(master_flat > 0):
-                        # Normalize flat field
-                        flat_norm = master_flat / np.median(master_flat)
-                        calibrated_data = calibrated_data / flat_norm
-                        logger.debug(f"Applied flat to {fits_file.name}")
-                    else:
-                        logger.warning(f"Flat frame issue for {fits_file.name}")
-                except Exception as e:
-                    logger.error(f"Error applying flat to {fits_file.name}: {e}")
-
-            # Create WCS object
-            wcs_obj = None
-            try:
-                if "CRVAL1" in header and "CRVAL2" in header:
-                    wcs_obj = WCS(header)
-                    if not wcs_obj.has_celestial:
-                        wcs_obj = None
-                        logger.debug(f"Invalid WCS in {fits_file.name}")
-                    else:
-                        logger.debug(f"Valid WCS loaded for {fits_file.name}")
-            except Exception as e:
-                logger.warning(f"WCS creation failed for {fits_file.name}: {e}")
-                wcs_obj = None
-
-            return (calibrated_data, fits_file.name, wcs_obj)
-
+                header = hdul[0].header.copy()
+            # Calibration
+            if master_bias is not None and master_bias.shape == data.shape:
+                data -= master_bias
+            if master_dark is not None and master_dark.shape == data.shape:
+                data -= master_dark
+            if (
+                master_flat is not None
+                and master_flat.shape == data.shape
+                and np.all(master_flat > 0)
+            ):
+                data /= master_flat / np.median(master_flat)
+            # Append calibration history
+            now = datetime.now().isoformat()
+            header.add_history(f"PulseHunter calibration: Bias/Dark/Flat applied {now}")
+            # Save to calibrated_lights
+            calibrated_path = calibrated_dir / file_path.name
+            fits.writeto(
+                calibrated_path, data, header, overwrite=True, output_verify="silentfix"
+            )
+            # Parse WCS if available
+            wcs = WCS(header) if "CRVAL1" in header and "CRVAL2" in header else None
+            update_progress()
+            return data, str(calibrated_path), wcs
         except Exception as e:
-            logger.error(f"Error loading {fits_file}: {e}")
+            logger.error(f"Error processing {file_path}: {e}")
+            update_progress()
             return None
 
-    # Process files in parallel
-    frames = []
-    filenames = []
-    wcs_objects = []
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    logger.info(f"Processing {len(fits_files)} files with {max_workers} workers...")
-
+    results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_file = {
-            executor.submit(load_single_fits, fits_file): fits_file
-            for fits_file in fits_files
-        }
+        futures = {executor.submit(calibrate_and_save, f): f for f in fits_files}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                results.append(result)
 
-        # Collect results as they complete
-        for future in as_completed(future_to_file):
-            fits_file = future_to_file[future]
-            try:
-                result = future.result()
-                if result is not None:
-                    frame_data, filename, wcs_obj = result
-                    frames.append(frame_data)
-                    filenames.append(filename)
-                    wcs_objects.append(wcs_obj)
-                else:
-                    logger.warning(f"Failed to load: {fits_file.name}")
-            except Exception as e:
-                logger.error(f"Error processing {fits_file.name}: {e}")
-
-            # Update progress
-            update_progress()
-
-    if not frames:
+    if not results:
         logger.error("No valid FITS files loaded")
         return np.array([]), [], []
 
-    # Convert to numpy array
-    frames_array = np.array(frames)
-
-    # Log calibration summary
-    cal_summary = []
-    if master_bias is not None:
-        cal_summary.append("bias")
-    if master_dark is not None:
-        cal_summary.append("dark")
-    if master_flat is not None:
-        cal_summary.append("flat")
-
-    if cal_summary:
-        logger.info(
-            f"✅ Loaded {len(frames)} frames with {', '.join(cal_summary)} calibration"
-        )
-    else:
-        logger.info(f"✅ Loaded {len(frames)} frames (no calibration applied)")
-
-    wcs_count = sum(1 for w in wcs_objects if w is not None)
-    logger.info(f"✅ {wcs_count}/{len(frames)} frames have valid WCS")
-
-    return frames_array, filenames, wcs_objects
+    frames, filenames, wcs_objects = zip(*results)
+    logger.info(f"✅ Calibrated and saved {len(frames)} frames to {calibrated_dir}")
+    return np.array(frames), list(filenames), list(wcs_objects)
 
 
 def apply_calibration_to_image(
