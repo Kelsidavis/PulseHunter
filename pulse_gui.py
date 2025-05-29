@@ -85,12 +85,22 @@ class ProcessingWorker(QThread):
                 progress_callback=lambda p: self.progress_updated.emit(int(p * 0.5)),
             )
 
+            # --- PATCH: Explicit WCS alignment ---
+            if all(wcs is not None for wcs in wcs_objects):
+                frames, aligned_wcs = core.wcs_align_frames(frames, wcs_objects)
+                self.log_message.emit('All frames WCS-aligned to reference frame.')
+            else:
+                self.log_message.emit('Not all frames have WCS; skipping alignment.')
+
             if len(frames) == 0:
                 self.error_occurred.emit("No valid FITS files found!")
                 return
 
             self.log_message.emit(f"Loaded {len(frames)} FITS files")
             self.status_updated.emit("Detecting transients...")
+
+            # Continue with the rest of your existing logic...
+
 
             # Detect transients
             detections = core.detect_transients(

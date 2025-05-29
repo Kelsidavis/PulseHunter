@@ -20,6 +20,36 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from reproject import reproject_interp
+from astropy.wcs import WCS
+
+def wcs_align_frames(frames, wcs_list, reference_index=0):
+    """
+    Reproject all frames onto the WCS grid of the reference frame.
+    Args:
+        frames: List or array of 2D numpy arrays
+        wcs_list: List of WCS objects (same length as frames)
+        reference_index: Which frame to use as the alignment reference
+    Returns:
+        aligned_frames: np.ndarray, shape = (n_frames, height, width)
+        reference_wcs: WCS of reference frame
+    """
+    reference_wcs = wcs_list[reference_index]
+    shape_out = frames[reference_index].shape
+    aligned_frames = []
+
+    for i, (frame, wcs) in enumerate(zip(frames, wcs_list)):
+        if wcs is not None and reference_wcs is not None:
+            # Reproject to reference WCS grid
+            aligned_data, _ = reproject_interp(
+                (frame, wcs), reference_wcs, shape_out=shape_out, order='bilinear'
+            )
+        else:
+            # No WCS—use original
+            aligned_data = frame
+        aligned_frames.append(aligned_data)
+    return np.array(aligned_frames), reference_wcs
+
 logger = logging.getLogger(__name__)
 
 

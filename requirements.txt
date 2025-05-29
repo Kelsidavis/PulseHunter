@@ -19,3 +19,5 @@ matplotlib>=3.5.0
 # Optional: For parallel processing speedup
 # Uncomment for faster processing:
 # joblib>=1.1.0
+
+reproject>=0.10
