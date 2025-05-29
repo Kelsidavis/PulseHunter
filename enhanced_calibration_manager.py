@@ -194,6 +194,7 @@ class AutoCalibrationManager:
         return filter_mappings.get(filter_name, filter_name)
 
 
+
 def enhanced_load_fits_stack(
     folder: str,
     plate_solve_missing: bool = False,
@@ -206,8 +207,9 @@ def enhanced_load_fits_stack(
     max_workers: int = 4,
 ) -> Tuple[np.ndarray, List[str], List[Optional[WCS]]]:
     """
-    Enhanced FITS stack loading with automatic calibration detection and application.
+    Enhanced FITS stack loading with calibration and plate-solved WCS merging.
     Calibrated FITS are always written to ../calibrated_lights/.
+    If a .wcs sidecar file exists, its WCS headers are merged into the output FITS header.
     """
     logger = CalibrationLogger()
     logger.info(f"Enhanced FITS loading from: {folder}")
@@ -227,7 +229,7 @@ def enhanced_load_fits_stack(
         return np.array([]), [], []
 
     # Prepare output directory for calibrated lights
-    calibrated_dir = folder_path.parent / "calibrated_lights"
+    calibrated_dir = (folder_path.parent / "calibrated_lights")
     calibrated_dir.mkdir(exist_ok=True)
 
     # Initialize calibration manager for auto-detect
@@ -270,20 +272,26 @@ def enhanced_load_fits_stack(
                 data -= master_bias
             if master_dark is not None and master_dark.shape == data.shape:
                 data -= master_dark
-            if (
-                master_flat is not None
-                and master_flat.shape == data.shape
-                and np.all(master_flat > 0)
-            ):
-                data /= master_flat / np.median(master_flat)
+            if master_flat is not None and master_flat.shape == data.shape and np.all(master_flat > 0):
+                data /= (master_flat / np.median(master_flat))
             # Append calibration history
             now = datetime.now().isoformat()
             header.add_history(f"PulseHunter calibration: Bias/Dark/Flat applied {now}")
+            # Append WCS from .wcs file if present
+            wcs_sidecar = file_path.with_suffix(file_path.suffix + ".wcs")
+            if wcs_sidecar.exists():
+                try:
+                    with fits.open(wcs_sidecar) as wcs_hdul:
+                        wcs_header = wcs_hdul[0].header
+                    for key in wcs_header:
+                        if key not in ['SIMPLE', 'BITPIX', 'NAXIS', 'EXTEND', 'COMMENT', '', 'END']:
+                            header[key] = wcs_header[key]
+                    header.add_history(f"WCS updated from {wcs_sidecar.name} {now}")
+                except Exception as e:
+                    logger.warning(f"Failed to append WCS from {wcs_sidecar}: {e}")
             # Save to calibrated_lights
             calibrated_path = calibrated_dir / file_path.name
-            fits.writeto(
-                calibrated_path, data, header, overwrite=True, output_verify="silentfix"
-            )
+            fits.writeto(calibrated_path, data, header, overwrite=True, output_verify='silentfix')
             # Parse WCS if available
             wcs = WCS(header) if "CRVAL1" in header and "CRVAL2" in header else None
             update_progress()
@@ -294,7 +302,6 @@ def enhanced_load_fits_stack(
             return None
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
-
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(calibrate_and_save, f): f for f in fits_files}
@@ -310,7 +317,6 @@ def enhanced_load_fits_stack(
     frames, filenames, wcs_objects = zip(*results)
     logger.info(f"✅ Calibrated and saved {len(frames)} frames to {calibrated_dir}")
     return np.array(frames), list(filenames), list(wcs_objects)
-
 
 def apply_calibration_to_image(
     image_data: np.ndarray,
