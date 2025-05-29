@@ -13,10 +13,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import matplotlib
+matplotlib.use("QtAgg") 
+
 # Import matplotlib for plotting
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import (
     QMutex,
@@ -74,32 +77,9 @@ from fits_processing import CalibrationProcessor, FITSProcessor
 # Import PulseHunter components
 from fixed_calibration_dialog import FixedCalibrationDialog
 
-import auto_calibration_manager
-# Enhanced calibration imports with fallback
-try:
-    from calibration_integration import smart_load_fits_stack as enhanced_load_fits_stack, AutoCalibrationManager
-    print("✅ Using enhanced calibration system")
-    ENHANCED_CALIBRATION_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Enhanced calibration not available: {e}")
-    try:
-        from auto_calibration_manager import enhanced_load_fits_stack, AutoCalibrationManager
-        print("✅ Using basic calibration system")
-        ENHANCED_CALIBRATION_AVAILABLE = False
-    except ImportError:
-        print("❌ No calibration system available - using fallback")
-        ENHANCED_CALIBRATION_AVAILABLE = False
-        
-        def enhanced_load_fits_stack(*args, **kwargs):
-            print("❌ No enhanced calibration available!")
-            return [], [], []
-        
-        class AutoCalibrationManager:
-            def __init__(self):
-                pass
-            def get_master_files_for_folder(self, folder):
-                return {}
-
+from calibration_integration import smart_load_fits_stack as enhanced_load_fits_stack, AutoCalibrationManager
+ENHANCED_CALIBRATION_AVAILABLE = True
+print("✅ Using enhanced calibration system (required)")
 
 class ProcessingWorker(QThread):
     """Worker thread for image processing to prevent GUI freezing - Updated version"""

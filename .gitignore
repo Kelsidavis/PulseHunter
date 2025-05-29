@@ -172,3 +172,5 @@ logs/
 tmp/
 *.tmp
 *.temp
+
+calibration_projects.json

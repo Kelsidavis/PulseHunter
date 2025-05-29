@@ -5,7 +5,7 @@ include requirements.txt
 include requirements-dev.txt
 recursive-include docs *.md *.rst *.txt
 recursive-include tests *.py
-recursive-include pulsehunter *.py
+include *.py
 include *.html
 include *.css
 include *.js
