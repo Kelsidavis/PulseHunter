@@ -585,7 +585,6 @@ GAIA: {detection.get('match_name', 'None')}
         self.canvas.draw()
 
 
-
 class ProcessConfigDialog(QDialog):
     """Dialog for configuring processing parameters (input auto-filled from calibration)."""
 
@@ -637,7 +636,6 @@ class ProcessConfigDialog(QDialog):
 
     def get_params(self):
         return self.project_data
-
 
 
 class PulseHunterMainWindow(QMainWindow):
@@ -932,8 +930,8 @@ class PulseHunterMainWindow(QMainWindow):
 
         self.process_btn = process_btn
         self.process_btn.setEnabled(False)
-process_btn.setProperty("class", "primary")
-        process_btn.setStyleSheet(
+        self.process_btn.setProperty("class", "primary")
+        self.process_btn.setStyleSheet(
             """
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -1412,7 +1410,6 @@ process_btn.setProperty("class", "primary")
             )
 
     def open_calibration_dialog(self):
-        """Open the enhanced calibration setup dialog"""
         try:
             self.add_system_log("Opening calibration setup dialog...")
             dialog = FixedCalibrationDialog(self)
@@ -1421,21 +1418,14 @@ process_btn.setProperty("class", "primary")
             # Update ASTAP status after dialog closes
             self.update_astap_status()
 
-
             if result == QDialog.DialogCode.Accepted:
                 self.add_system_log("Calibration setup completed")
-    if hasattr(self, "process_btn"):
-        self.process_btn.setEnabled(True)
-    # Set calibrated_folder if available from dialog
-    if hasattr(dialog, "get_calibrated_folder"):
-        self.calibrated_folder = dialog.get_calibrated_folder()
-                # Enable Process Images button and update folder
                 if hasattr(self, "process_btn"):
                     self.process_btn.setEnabled(True)
-                    # You could also save the calibrated folder path here as self.calibrated_folder
+                if hasattr(dialog, "get_calibrated_folder"):
+                    self.calibrated_folder = dialog.get_calibrated_folder()
             else:
                 self.add_system_log("Calibration setup cancelled")
-
 
         except Exception as e:
             error_msg = f"Error opening calibration dialog: {str(e)}"
@@ -1576,11 +1566,14 @@ process_btn.setProperty("class", "primary")
                 f"Please check the executable path and ensure ASTAP is properly installed.",
             )
 
-
     def process_images(self):
         """Process FITS images - Now streamlined for new workflow"""
         if not hasattr(self, "calibrated_folder") or not self.calibrated_folder:
-            QMessageBox.warning(self, "Calibration Required", "You must complete calibration before processing images.")
+            QMessageBox.warning(
+                self,
+                "Calibration Required",
+                "You must complete calibration before processing images.",
+            )
             return
         dialog = ProcessConfigDialog(self, input_folder=self.calibrated_folder)
         result = dialog.exec()
@@ -1589,7 +1582,6 @@ process_btn.setProperty("class", "primary")
         params = dialog.get_params()
         # You would trigger your processing worker here, passing params
         print("Processing started with params:", params)
-
 
         # EMERGENCY FIX: Add timeout protection
         self.emergency_timeout = QTimer()
