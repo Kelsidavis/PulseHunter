@@ -567,6 +567,14 @@ class PulseHunterMainWindow(QMainWindow):
         browse_flat_btn.clicked.connect(lambda: self.browse_folder("flat"))
         folders_layout.addWidget(browse_flat_btn, 3, 2)
 
+                # Dark Flat folder
+        folders_layout.addWidget(QLabel("Dark Flat Folder:"), 4, 0)
+        self.darkflat_folder_edit = QLineEdit()
+        folders_layout.addWidget(self.darkflat_folder_edit, 4, 1)
+        browse_darkflat_btn = QPushButton("Browse...")
+        browse_darkflat_btn.clicked.connect(lambda: self.browse_folder("darkflat"))
+        folders_layout.addWidget(browse_darkflat_btn, 4, 2)
+
         layout.addWidget(folders_group)
 
         # Calibration controls
@@ -706,6 +714,8 @@ class PulseHunterMainWindow(QMainWindow):
                 self.dark_folder_edit.setText(folder)
             elif folder_type == "flat":
                 self.flat_folder_edit.setText(folder)
+            elif folder_type == "darkflat":
+                self.darkflat_folder_edit.setText(folder)
 
     def browse_process_folder(self):
         """Browse for folder to process"""
@@ -730,6 +740,7 @@ class PulseHunterMainWindow(QMainWindow):
             "bias_folder": self.bias_folder_edit.text() or None,
             "dark_folder": self.dark_folder_edit.text() or None,
             "flat_folder": self.flat_folder_edit.text() or None,
+            "darkflat_folder": self.darkflat_folder_edit.text() or None,
         }
 
         # Start worker

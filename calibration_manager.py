@@ -95,6 +95,83 @@ class CalibrationManager:
             dark_files, output_file, "dark", progress_callback, master_bias
         )
 
+    
+    def create_master_flat(
+        self,
+        flat_files: List[Path],
+        output_file: Path,
+        master_bias: Optional[np.ndarray] = None,
+        master_dark_flat: Optional[np.ndarray] = None,
+        progress_callback: Optional[callable] = None,
+    ) -> bool:
+        """Create master flat frame applying bias and dark flat corrections"""
+        if not flat_files:
+            self.logger.error("No flat files provided")
+            return False
+
+        self.logger.info(f"Creating master flat from {len(flat_files)} files")
+
+        frames = []
+        for i, file_path in enumerate(flat_files):
+            try:
+                with fits.open(file_path) as hdul:
+                    data = hdul[0].data.astype(np.float32)
+                    if master_bias is not None:
+                        data -= master_bias
+                    if master_dark_flat is not None:
+                        data -= master_dark_flat
+                    frames.append(data)
+            except Exception as e:
+                self.logger.warning(f"Failed to load flat {file_path}: {e}")
+                continue
+
+            if progress_callback:
+                progress_callback(int((i + 1) / len(flat_files) * 70))
+
+        if len(frames) < 3:
+            self.logger.error("Need at least 3 valid flat frames")
+            return False
+
+        master = np.median(frames, axis=0)
+
+        median_value = np.median(master[master > 0])
+        if median_value > 0:
+            master /= median_value
+        else:
+            self.logger.error("Failed to normalize flat - median is zero")
+            return False
+
+        header = fits.Header()
+        header["IMAGETYP"] = "MASTER_FLAT"
+        header["NFRAMES"] = len(frames)
+        header["DATE"] = datetime.utcnow().isoformat()
+        header["COMMENT"] = "PulseHunter master flat frame"
+
+        mean, median, std = sigma_clipped_stats(master, sigma=3.0)
+        header["MEAN"], header["MEDIAN"], header["STDDEV"] = mean, median, std
+
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        fits.writeto(output_file, master, header, overwrite=True)
+
+        if progress_callback:
+            progress_callback(100)
+
+        self.logger.info(f"Saved master flat to {output_file}")
+        return True
+
+    def create_master_dark_flat(
+        self,
+        dark_flat_files: List[Path],
+        output_file: Path,
+        master_bias: Optional[np.ndarray] = None,
+        progress_callback: Optional[callable] = None,
+    ) -> bool:
+        """Create master dark flat frame from dark flat frames"""
+        return self._create_master_calibration(
+            dark_flat_files, output_file, "dark_flat", progress_callback, master_bias
+        )
+
+
     def create_master_flat(
         self,
         flat_files: List[Path],
@@ -331,6 +408,7 @@ def quick_calibrate_folder(
     bias_folder: Optional[str] = None,
     dark_folder: Optional[str] = None,
     flat_folder: Optional[str] = None,
+    darkflat_folder: Optional[str] = None,   # PATCHED: add darkflat_folder
     output_folder: Optional[str] = None,
 ) -> bool:
     """
@@ -383,6 +461,26 @@ def quick_calibrate_folder(
         if master_bias_file and master_bias_file.exists():
             master_bias_data = manager.load_master_frame(master_bias_file)
 
+        # PATCH: Create master dark flat
+        master_darkflat_file = None
+        master_darkflat_data = None
+        if darkflat_folder and Path(darkflat_folder).exists():
+            darkflat_files = list(Path(darkflat_folder).glob("*.fit*"))
+            if darkflat_files:
+                master_darkflat_file = master_path / "master_darkflat.fits"
+                logger.info(f"Creating master dark flat from {len(darkflat_files)} files...")
+                if not manager.create_master_dark_flat(
+                    darkflat_files, master_darkflat_file, master_bias_data
+                ):
+                    logger.warning("Failed to create master dark flat")
+                    master_darkflat_file = None
+            if master_darkflat_file and master_darkflat_file.exists():
+                master_darkflat_data = manager.load_master_frame(master_darkflat_file)
+        
+        master_bias_data = None
+        if master_bias_file and master_bias_file.exists():
+            master_bias_data = manager.load_master_frame(master_bias_file)
+
         # Create master dark
         if dark_folder and Path(dark_folder).exists():
             dark_files = list(Path(dark_folder).glob("*.fit*"))
@@ -407,7 +505,7 @@ def quick_calibrate_folder(
                 master_flat_file = master_path / "master_flat.fits"
                 logger.info(f"Creating master flat from {len(flat_files)} files...")
                 if not manager.create_master_flat(
-                    flat_files, master_flat_file, master_bias_data, master_dark_data
+                    flat_files, master_flat_file, master_bias_data, master_darkflat_data
                 ):
                     logger.warning("Failed to create master flat")
                     master_flat_file = None
